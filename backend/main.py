@@ -18,8 +18,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
