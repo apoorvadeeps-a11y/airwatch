@@ -53,6 +53,54 @@ async def nearest_station(lat: float, lng: float):
     data = res.json()
     return data[0] if data else {"error": "No station found"}
 
+@app.get("/hotspots")
+async def get_hotspots():
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                f"{SUPABASE_URL}/rest/v1/reports?select=*&severity=gte.3&order=timestamp.desc&limit=100",
+                headers=HEADERS
+            )
+        reports = res.json()
+
+        hotspots = []
+        used = set()
+
+        for i, r in enumerate(reports):
+            if i in used:
+                continue
+            cluster = [r]
+            used.add(i)
+
+            for j, r2 in enumerate(reports):
+                if j in used:
+                    continue
+                dlat = abs(r["lat"] - r2["lat"]) * 111
+                dlng = abs(r["lng"] - r2["lng"]) * 111
+                dist = (dlat**2 + dlng**2) ** 0.5
+
+                if dist <= 1.5:
+                    cluster.append(r2)
+                    used.add(j)
+
+            if len(cluster) >= 2:
+                avg_lat = sum(c["lat"] for c in cluster) / len(cluster)
+                avg_lng = sum(c["lng"] for c in cluster) / len(cluster)
+                max_severity = max(c["severity"] for c in cluster)
+
+                hotspots.append({
+                    "lat": avg_lat,
+                    "lng": avg_lng,
+                    "report_count": len(cluster),
+                    "max_severity": max_severity,
+                    "pollution_type": cluster[0]["gemini_analysis"].split(".")[0] if cluster[0].get("gemini_analysis") else "Unknown",
+                    "reports": cluster
+                })
+
+        return {"hotspots": hotspots}
+    except Exception as e:
+        return {"error": str(e), "hotspots": []}
+
 
 @app.post("/report")
 async def submit_report(
