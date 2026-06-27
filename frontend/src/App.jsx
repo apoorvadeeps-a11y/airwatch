@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
 const TABS = ["Report", "Map", "Alerts"];
-const API = "http://localhost:8000";
+const API = "https://airwatch-yb3c.onrender.com";
 
 const SEVERITY_COLORS = {
   1: { bg: "bg-green-900", text: "text-green-300", border: "border-green-700", label: "Good" },
