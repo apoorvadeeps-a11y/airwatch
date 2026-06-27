@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from PIL import Image
 import io, base64, json
 from fastapi import FastAPI, UploadFile, File, Form
@@ -29,7 +28,7 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-client_genai = genai.Client(api_key=GEMINI_KEY)
+genai.configure(api_key=GEMINI_KEY)
 
 
 @app.get("/")
@@ -52,6 +51,7 @@ async def nearest_station(lat: float, lng: float):
         )
     data = res.json()
     return data[0] if data else {"error": "No station found"}
+
 
 @app.get("/hotspots")
 async def get_hotspots():
@@ -160,18 +160,14 @@ Based on all available information, respond in this exact JSON format:
 Respond with JSON only. No markdown, no explanation."""
 
         try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
             if photo:
                 photo_bytes = await photo.read()
-                image_part = types.Part.from_bytes(data=photo_bytes, mime_type=photo.content_type)
-                response = client_genai.models.generate_content(
-                    model="gemini-2.0-flash-lite",
-                    contents=[prompt, image_part]
-                )
+                image_part = {"mime_type": photo.content_type, "data": photo_bytes}
+                response = model.generate_content([prompt, image_part])
             else:
-                response = client_genai.models.generate_content(
-                    model="gemini-2.0-flash-lite",
-                    contents=prompt
-                )
+                response = model.generate_content(prompt)
+
             try:
                 raw = response.text.strip()
                 if raw.startswith("```"):
@@ -208,6 +204,8 @@ Respond with JSON only. No markdown, no explanation."""
         "analysis": analysis,
         "station": station,
     }
+
+
 @app.get("/stations")
 async def get_stations():
     async with httpx.AsyncClient() as client:
