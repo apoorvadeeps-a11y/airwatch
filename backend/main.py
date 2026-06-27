@@ -164,12 +164,12 @@ Respond with JSON only. No markdown, no explanation."""
                 photo_bytes = await photo.read()
                 image_part = types.Part.from_bytes(data=photo_bytes, mime_type=photo.content_type)
                 response = client_genai.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-1.5-flash",
                     contents=[prompt, image_part]
                 )
             else:
                 response = client_genai.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-1.5-flash",
                     contents=prompt
                 )
             try:
