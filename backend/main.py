@@ -1,10 +1,9 @@
-import google.generativeai as genai
-from PIL import Image
-import io, base64, json
+import base64, json, os
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-import httpx, os
 from dotenv import load_dotenv
+import httpx
+import math
 
 load_dotenv()
 
@@ -28,7 +27,24 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-genai.configure(api_key=GEMINI_KEY)
+
+async def call_gemini(prompt: str, photo_bytes=None, mime_type=None):
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+    parts = [{"text": prompt}]
+    if photo_bytes:
+        parts.append({
+            "inline_data": {
+                "mime_type": mime_type,
+                "data": base64.b64encode(photo_bytes).decode()
+            }
+        })
+    payload = {"contents": [{"parts": parts}]}
+    async with httpx.AsyncClient(timeout=30) as client:
+        res = await client.post(url, json=payload)
+        data = res.json()
+        if "error" in data:
+            raise Exception(f"{data['error'].get('code')} {data['error'].get('message')}")
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 @app.get("/")
@@ -160,24 +176,20 @@ Based on all available information, respond in this exact JSON format:
 Respond with JSON only. No markdown, no explanation."""
 
         try:
-            model = genai.GenerativeModel("gemini-pro")
+            photo_bytes = None
+            mime_type = None
             if photo:
                 photo_bytes = await photo.read()
-                image_part = {"mime_type": photo.content_type, "data": photo_bytes}
-                response = model.generate_content([prompt, image_part])
-            else:
-                response = model.generate_content(prompt)
+                mime_type = photo.content_type
 
-            try:
-                raw = response.text.strip()
-                if raw.startswith("```"):
-                    raw = raw.split("```")[1]
-                    if raw.startswith("json"):
-                        raw = raw[4:]
-                analysis = json.loads(raw.strip())
-            except Exception as e:
-                print("Gemini parse failed:", e)
-                analysis = {"raw": response.text, "severity": 3}
+            raw = await call_gemini(prompt, photo_bytes, mime_type)
+
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            analysis = json.loads(raw.strip())
+
         except Exception as e:
             print("Gemini call failed:", e)
             analysis = {"severity": 3, "error": str(e), "advisory": "Analysis unavailable."}
@@ -224,8 +236,9 @@ async def get_nearby_reports(lat: float, lng: float, radius_km: float = 10):
             headers=HEADERS
         )
     all_reports = res.json()
-    import math
+
     def dist(la, lo):
         return math.sqrt((la - lat)**2 + (lo - lng)**2) * 111
+
     nearby = [r for r in all_reports if r.get("lat") and r.get("lng") and dist(r["lat"], r["lng"]) <= radius_km]
     return nearby
