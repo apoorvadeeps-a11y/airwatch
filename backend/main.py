@@ -160,7 +160,7 @@ Based on all available information, respond in this exact JSON format:
 Respond with JSON only. No markdown, no explanation."""
 
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-pro")
             if photo:
                 photo_bytes = await photo.read()
                 image_part = {"mime_type": photo.content_type, "data": photo_bytes}
