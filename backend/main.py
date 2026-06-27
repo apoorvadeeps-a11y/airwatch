@@ -29,7 +29,7 @@ HEADERS = {
 
 
 async def call_gemini(prompt: str, photo_bytes=None, mime_type=None):
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent?key={GEMINI_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}"
     parts = [{"text": prompt}]
     if photo_bytes:
         parts.append({
