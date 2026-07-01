@@ -1,0 +1,16 @@
+{
+  "name": "AirWatch",
+  "short_name": "AirWatch",
+  "description": "AI-powered neighbourhood air quality tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06070b",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
