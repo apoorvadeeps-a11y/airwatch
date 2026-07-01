@@ -1,10 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, VolumeX, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, User, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kplxzqbsymnvdhfjwvlp.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'public-anon-key-mock';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
 
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
 const API = "http://localhost:8000";
@@ -87,7 +82,7 @@ const TRANSLATIONS = {
   },
   ta: {
     title: "AirWatch", sub: "அக்கம் பக்க காற்று தரக் கண்காணிப்பாளர்", describe: "நீங்கள் பார்ப்பதை விவரிக்கவும்", photo: "புகைப்படத்தை இணைக்கவும்", location: "இடம்", submit: "அறிக்கையைச் சமர்ப்பிக்கவும்", dictate: "பேசுங்கள்", listening: "கேட்கிறது...", loading: "பகுப்பாய்வு செய்கிறது...", report: "அறிக்கை", prediction: "கணிப்பு", map: "வரைபடம்", alerts: "எச்சரிக்கைகள்", chat: "அரட்டை", municipal: "நகராட்சி",
-    weatherContext: "உள்ளூர் வானிலை", humidity: "ஈரப்பதம்", wind: "காற்று",
+    weatherContext: "உள்ளூர் வானிலை", humidity: "ஈரப்பதம்", wind: "காற்றின் வேகம்",
     mapTabShareLoc: "உள்ளூர் காற்றின் தரத்தைக் காண உங்கள் இருப்பிடத்தைப் பகிரவும்",
     mapTabDetecting: "கண்டறிகிறது...", mapTabDetect: "என் இருப்பிடத்தைக் கண்டறி",
     mapTabReportsNearby: "அருகிலுள்ள அறிக்கைகள்", mapTabRefresh: "புதுப்பி",
@@ -192,9 +187,9 @@ function AQIPredictorChart({ lat, lng, t }) {
   }, [lat, lng]);
 
   if (loading) return (
-    <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-      <Activity className="w-8 h-8 text-emerald-500 animate-pulse mb-4" />
-      <div className="text-gray-400 font-medium tracking-wide animate-pulse">{t.aqiPredLoading}</div>
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
+      <Activity className="w-6 h-6 text-emerald-500 animate-pulse mb-3" />
+      <div className="text-gray-400 text-sm animate-pulse">{t.aqiPredLoading}</div>
     </div>
   );
   if (error || !data || data.error) return null;
@@ -202,246 +197,173 @@ function AQIPredictorChart({ lat, lng, t }) {
   const allPoints = [...(data.historical || []), ...(data.predicted || [])];
   if (allPoints.length === 0) return null;
 
+  const historicalCount = (data.historical || []).length;
   const maxAqi = Math.max(...allPoints.map((p) => p.aqi), 200);
-  const chartW = 800, chartH = 450, padL = 45, padR = 25, padT = 30, padB = 40;
+  const chartW = 900, chartH = 300, padL = 42, padR = 20, padT = 18, padB = 34;
   const plotW = chartW - padL - padR, plotH = chartH - padT - padB;
   const yMax = Math.ceil(maxAqi / 50) * 50 + 50;
-
   const x = (i) => padL + (i / (allPoints.length - 1)) * plotW;
   const y = (aqi) => padT + plotH - (aqi / yMax) * plotH;
-
-  // AQI background bands
   const bands = [
-    { min: 0, max: 50, color: "rgba(0,228,0,0.04)", label: "Good" },
-    { min: 50, max: 100, color: "rgba(255,255,0,0.03)", label: "Moderate" },
-    { min: 100, max: 200, color: "rgba(255,126,0,0.03)", label: "Unhealthy" },
-    { min: 200, max: 300, color: "rgba(255,0,0,0.03)", label: "V.Unhealthy" },
-    { min: 300, max: yMax, color: "rgba(143,63,151,0.04)", label: "Hazardous" },
+    { min: 0,   max: 50,   color: "rgba(0,228,0,0.05)",    label: "Good" },
+    { min: 50,  max: 100,  color: "rgba(255,255,0,0.04)",  label: "Moderate" },
+    { min: 100, max: 200,  color: "rgba(255,126,0,0.04)",  label: "Unhealthy" },
+    { min: 200, max: 300,  color: "rgba(255,0,0,0.04)",    label: "V.Unhealthy" },
+    { min: 300, max: yMax, color: "rgba(143,63,151,0.05)", label: "Hazardous" },
   ];
-
-  const historicalCount = (data.historical || []).length;
-
-  const histPoints = allPoints.slice(0, historicalCount);
+  const histPath = allPoints.slice(0, historicalCount).map((p, i) =>
+    `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.aqi).toFixed(1)}`).join(" ");
   const predPoints = allPoints.slice(historicalCount - 1);
-
-  const histPath = histPoints.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.aqi).toFixed(1)}`).join(" ");
   const predPath = predPoints.map((p, i) => {
     const idx = historicalCount - 1 + i;
     return `${i === 0 ? "M" : "L"}${x(idx).toFixed(1)},${y(p.aqi).toFixed(1)}`;
   }).join(" ");
+  const predicted = data.predicted || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-        {/* Abstract background element */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 relative z-10">
-          <div>
-            <h3 className="text-2xl font-black text-white flex items-center gap-2">
-              <Activity className="text-emerald-400 w-6 h-6" />
-              Air Quality Forecast
-            </h3>
-            <p className="text-gray-400 text-sm mt-1 flex items-center gap-1.5 font-medium">
-              <MapPin className="w-4 h-4 text-gray-500" />
-              {data.station_name} • {data.city}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-sm shadow-inner">
-              <div className="flex flex-col">
-                <span className="text-xs text-gray-400 font-medium">Current AQI</span>
-                <span className="text-lg font-bold text-white leading-tight">{data.current_aqi}</span>
-              </div>
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-gray-950 shadow-sm"
-                style={{ backgroundColor: aqiColor(data.current_aqi) }}
-              >
-                {aqiLabel(data.current_aqi).charAt(0)}
-              </div>
-            </div>
-          </div>
+    <div className="space-y-3">
+      {/* Top bar */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-white font-bold text-sm flex items-center gap-1.5">
+            <Activity className="text-emerald-400 w-4 h-4" /> AQI Forecast — {data.user_location || data.city}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />
+            {data.user_location || data.city}
+            <span className="text-gray-600 ml-1">· {data.station_name}</span>
+            {data.station_count > 1 && <span className="text-gray-600 ml-1">({data.station_count} stations avg)</span>}
+          </p>
         </div>
-
-        {/* Alerts & Weather */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
-          {data.spike_alerts && data.spike_alerts.length > 0 && (
-            <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-4 relative overflow-hidden group shadow-inner">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex items-start gap-3 relative z-10">
-                <AlertTriangle className="text-red-400 w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-red-400 font-bold text-sm tracking-wide">{data.spike_alerts[0].title}</h4>
-                  <p className="text-red-300/80 text-xs mt-1 leading-relaxed">{data.spike_alerts[0].reason}</p>
-                  <p className="text-red-200 text-xs mt-2 font-medium bg-red-900/40 inline-block px-2 py-1 rounded border border-red-800/50">
-                    {data.spike_alerts[0].impact}
-                  </p>
-                </div>
-              </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-gray-950"
+              style={{ backgroundColor: aqiColor(data.current_aqi) }}>{data.current_aqi}</div>
+            <div>
+              <p className="text-xs text-gray-400">Now</p>
+              <p className="text-xs font-bold text-white">{data.current_label || aqiLabel(data.current_aqi)}</p>
             </div>
-          )}
-
+          </div>
           {data.weather_factors && (
-            <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4 flex flex-col justify-center shadow-inner">
-              <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
-                <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-900/50">
-                  <Thermometer className="w-4 h-4" /> {data.weather_factors.temperature}°C
-                </div>
-                <div className="flex items-center gap-1.5 text-blue-400 bg-blue-950/40 px-3 py-1.5 rounded-lg border border-blue-900/50">
-                  <Wind className="w-4 h-4" /> {data.weather_factors.wind_speed} km/h
-                </div>
-                <div className="flex items-center gap-1.5 text-purple-400 bg-purple-950/40 px-3 py-1.5 rounded-lg border border-purple-900/50">
-                  <Cloud className="w-4 h-4" /> {data.weather_factors.humidity}%
-                </div>
-              </div>
-              {data.weather_factors.analysis && (
-                <p className="text-xs text-gray-400 mt-3 flex items-start gap-1.5">
-                  <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                  {data.weather_factors.analysis}
-                </p>
-              )}
+            <div className="flex items-center gap-2 text-xs text-gray-300 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-1.5">
+              <Thermometer className="w-3.5 h-3.5 text-emerald-400" />{data.weather_factors.temperature}°C
+              <Wind className="w-3.5 h-3.5 text-blue-400 ml-1" />{data.weather_factors.wind_speed}km/h
+              <Cloud className="w-3.5 h-3.5 text-purple-400 ml-1" />{data.weather_factors.humidity}%
             </div>
           )}
+          {data.trend === "increasing" && <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-950/40 border border-red-900/50 px-2.5 py-1 rounded-lg"><TrendingUp className="w-3.5 h-3.5" /> {data.trend_description}</span>}
+          {data.trend === "decreasing" && <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 px-2.5 py-1 rounded-lg"><TrendingDown className="w-3.5 h-3.5" /> {data.trend_description}</span>}
+          {data.trend === "stable" && <span className="flex items-center gap-1 text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-900/50 px-2.5 py-1 rounded-lg"><Minus className="w-3.5 h-3.5" /> {data.trend_description}</span>}
         </div>
       </div>
 
-      {/* Chart Section */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className="text-xs text-gray-300"><span className="text-gray-500">Season:</span> {data.seasonal_context}</span>
-          </div>
-
-          {data.trend === 'increasing' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-red-400 bg-red-950/30 px-3 py-1.5 rounded-lg border border-red-900/50">
-              <TrendingUp className="w-4 h-4" /> {data.trend_description}
-            </div>
-          )}
-          {data.trend === 'decreasing' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-950/30 px-3 py-1.5 rounded-lg border border-emerald-900/50">
-              <TrendingDown className="w-4 h-4" /> {data.trend_description}
-            </div>
-          )}
-          {data.trend === 'stable' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-400 bg-amber-950/30 px-3 py-1.5 rounded-lg border border-amber-900/50">
-              <Minus className="w-4 h-4" /> {data.trend_description}
-            </div>
-          )}
+      {/* Spike alert */}
+      {data.spike_alerts?.length > 0 && (
+        <div className="bg-red-950/30 border border-red-600/40 rounded-xl px-4 py-2.5 flex items-center gap-3">
+          <AlertTriangle className="text-red-400 w-4 h-4 flex-shrink-0" />
+          <p className="text-xs"><span className="text-red-400 font-bold">{data.spike_alerts[0].title}: </span>
+          <span className="text-red-300/80">{data.spike_alerts[0].reason} — {data.spike_alerts[0].impact}</span></p>
         </div>
+      )}
 
-        <div className="overflow-x-auto pb-2">
-          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto min-h-[450px] bg-gray-950 rounded-xl border border-gray-800">
-            {/* Background bands */}
-            {bands.map((b) => {
-              const bandTop = Math.max(y(Math.min(b.max, yMax)), padT);
-              const bandBot = Math.min(y(b.min), padT + plotH);
-              if (bandBot <= bandTop) return null;
-              return (
-                <g key={b.label}>
-                  <rect x={padL} y={bandTop} width={plotW} height={bandBot - bandTop} fill={b.color} />
-                  <text x={padL + 6} y={bandTop + 14} fill="rgba(255,255,255,0.2)" fontSize="10" fontFamily="sans-serif" fontWeight="500">{b.label}</text>
-                </g>
-              );
-            })}
-
-            {/* Grid lines */}
-            {Array.from({ length: Math.floor(yMax / 50) + 1 }, (_, i) => i * 50).map((val) => (
-              <g key={val}>
-                <line x1={padL} y1={y(val)} x2={padL + plotW} y2={y(val)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4 4" />
-                <text x={padL - 8} y={y(val) + 3} fill="#6b7280" fontSize="10" textAnchor="end" fontFamily="sans-serif" fontWeight="500">{val}</text>
-              </g>
-            ))}
-
-            {/* Prediction zone background */}
-            {historicalCount < allPoints.length && (
-              <rect
-                x={x(historicalCount - 1)} y={padT}
-                width={x(allPoints.length - 1) - x(historicalCount - 1)}
-                height={plotH}
-                fill="rgba(59,130,246,0.03)"
-                stroke="rgba(59,130,246,0.2)"
-                strokeDasharray="4 4"
-                strokeWidth="1"
-              />
-            )}
-
-            {/* Path glow effect */}
-            <path d={histPath} fill="none" stroke="rgba(16,185,129,0.3)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-
-            {/* Historical line */}
-            <path d={histPath} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-            {/* Predicted line */}
-            {predPath && (
-              <>
-                <path d={predPath} fill="none" stroke="rgba(59,130,246,0.2)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
-              </>
-            )}
-
-            {/* Data points */}
-            {allPoints.map((p, i) => {
-              const isPredicted = i >= historicalCount;
-              const isCurrent = p.type === "current";
-              return (
-                <g key={i}
-                  onMouseEnter={() => setHoveredPoint({ ...p, idx: i })}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {isCurrent && (
-                    <circle cx={x(i)} cy={y(p.aqi)} r={8} fill="rgba(245,158,11,0.3)" className="animate-ping" />
-                  )}
-                  <circle cx={x(i)} cy={y(p.aqi)} r={isCurrent ? 6 : 4}
-                    fill={isCurrent ? "#f59e0b" : isPredicted ? "#3b82f6" : "#10b981"}
-                    stroke={isCurrent ? "#fff" : "#1f2937"} strokeWidth={2}
-                    opacity={hoveredPoint?.idx === i ? 1 : 0.9}
-                  />
-                  <circle cx={x(i)} cy={y(p.aqi)} r={15} fill="transparent" />
-                </g>
-              );
-            })}
-
-            {/* Tooltip */}
-            {hoveredPoint && (
-              <g>
-                <rect x={x(hoveredPoint.idx) - 55} y={y(hoveredPoint.aqi) - 45} width="110" height="34" rx="6" fill="#1f2937" stroke="#374151" strokeWidth="1" className="shadow-lg" />
-                <text x={x(hoveredPoint.idx)} y={y(hoveredPoint.aqi) - 28} textAnchor="middle" fill="white" fontSize="11" fontFamily="sans-serif" fontWeight="700">
-                  AQI {hoveredPoint.aqi} • {hoveredPoint.date?.slice(5)}
-                </text>
-                <text x={x(hoveredPoint.idx)} y={y(hoveredPoint.aqi) - 15} textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="sans-serif" fontWeight="500">
-                  {hoveredPoint.type === "predicted" ? "Predicted" : hoveredPoint.type === "current" ? "Today" : "Historical"}
-                </text>
-              </g>
-            )}
-
-            {/* X-axis labels */}
-            {allPoints.filter((_, i) => i % 7 === 0 || i === allPoints.length - 1).map((p, _, arr) => {
-              const idx = allPoints.indexOf(p);
-              return (
-                <text key={p.date} x={x(idx)} y={chartH - 8} fill="#9ca3af" fontSize="10" textAnchor="middle" fontFamily="sans-serif" fontWeight="500">
-                  {p.date?.slice(5)}
-                </text>
-              );
-            })}
-
-            {/* Legend */}
-            <g transform={`translate(${padL + 10}, ${chartH - 22})`}>
-              <circle cx="0" cy="0" r="4" fill="#10b981" />
-              <text x="10" y="3" fill="#9ca3af" fontSize="10" fontFamily="sans-serif">Historical</text>
-
-              <circle cx="85" cy="0" r="4" fill="#3b82f6" />
-              <text x="95" y="3" fill="#9ca3af" fontSize="10" fontFamily="sans-serif">Predicted</text>
-
-              <circle cx="170" cy="0" r="5" fill="#f59e0b" stroke="#fff" strokeWidth="1.5" />
-              <text x="180" y="3" fill="#9ca3af" fontSize="10" fontFamily="sans-serif">Today</text>
+      {/* Chart */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
+        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{data.seasonal_context}</p>
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto bg-gray-950 rounded-lg border border-gray-800/60">
+          {bands.map((b) => {
+            const bTop = Math.max(y(Math.min(b.max, yMax)), padT);
+            const bBot = Math.min(y(b.min), padT + plotH);
+            if (bBot <= bTop) return null;
+            return (<g key={b.label}>
+              <rect x={padL} y={bTop} width={plotW} height={bBot - bTop} fill={b.color} />
+              <text x={padL + 5} y={bTop + 11} fill="rgba(255,255,255,0.18)" fontSize="9" fontFamily="sans-serif">{b.label}</text>
+            </g>);
+          })}
+          {Array.from({ length: Math.floor(yMax / 50) + 1 }, (_, i) => i * 50).map((val) => (
+            <g key={val}>
+              <line x1={padL} y1={y(val)} x2={padL + plotW} y2={y(val)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
+              <text x={padL - 6} y={y(val) + 3} fill="#6b7280" fontSize="9" textAnchor="end" fontFamily="sans-serif">{val}</text>
             </g>
-          </svg>
-        </div>
+          ))}
+          {historicalCount < allPoints.length && (
+            <rect x={x(historicalCount - 1)} y={padT} width={x(allPoints.length - 1) - x(historicalCount - 1)} height={plotH} fill="rgba(59,130,246,0.04)" />
+          )}
+          <path d={histPath} fill="none" stroke="rgba(16,185,129,0.25)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={histPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {predPath && <>
+            <path d={predPath} fill="none" stroke="rgba(59,130,246,0.18)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
+          </>}
+          {allPoints.map((p, i) => {
+            const isPred = i >= historicalCount;
+            const isCur  = p.type === "current";
+            return (
+              <g key={i} onMouseEnter={() => setHoveredPoint({ ...p, idx: i })} onMouseLeave={() => setHoveredPoint(null)} style={{ cursor: "pointer" }}>
+                {isCur && <circle cx={x(i)} cy={y(p.aqi)} r={7} fill="rgba(245,158,11,0.25)" />}
+                <circle cx={x(i)} cy={y(p.aqi)} r={isCur ? 5 : 3.5}
+                  fill={isCur ? "#f59e0b" : isPred ? "#3b82f6" : "#10b981"}
+                  stroke={isCur ? "#fff" : "#111827"} strokeWidth={1.5} />
+                <circle cx={x(i)} cy={y(p.aqi)} r={12} fill="transparent" />
+              </g>
+            );
+          })}
+          {hoveredPoint && (
+            <g>
+              <rect x={Math.min(x(hoveredPoint.idx) - 52, chartW - padR - 110)} y={y(hoveredPoint.aqi) - 42} width="104" height="32" rx="5" fill="#1f2937" stroke="#374151" strokeWidth="1" />
+              <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 26} textAnchor="middle" fill="white" fontSize="10" fontFamily="sans-serif" fontWeight="700">AQI {hoveredPoint.aqi} · {hoveredPoint.date?.slice(5)}</text>
+              <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 14} textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="sans-serif">
+                {hoveredPoint.type === "predicted" ? `Predicted · ${hoveredPoint.confidence}% conf.` : hoveredPoint.type === "current" ? "Today (live)" : "Historical"}
+              </text>
+            </g>
+          )}
+          {allPoints.filter((_, i) => i % 7 === 0 || i === allPoints.length - 1).map((p) => {
+            const idx = allPoints.indexOf(p);
+            return <text key={p.date} x={x(idx)} y={chartH - 5} fill="#6b7280" fontSize="9" textAnchor="middle" fontFamily="sans-serif">{p.date?.slice(5)}</text>;
+          })}
+          <g transform={`translate(${padL + 8}, ${chartH - 18})`}>
+            <circle cx="0" cy="0" r="3.5" fill="#10b981" /><text x="8" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Historical</text>
+            <circle cx="72" cy="0" r="3.5" fill="#3b82f6" /><text x="80" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Predicted</text>
+            <circle cx="148" cy="0" r="4" fill="#f59e0b" stroke="#fff" strokeWidth="1" /><text x="156" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Today</text>
+          </g>
+        </svg>
       </div>
+
+      {/* 7-day forecast cards */}
+      {predicted.length > 0 && (
+        <div>
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">7-Day Forecast</p>
+          <div className="grid grid-cols-7 gap-1.5 mb-2">
+            {predicted.map((p, i) => {
+              const shortDay = new Date(p.date).toLocaleDateString("en", { weekday: "short" });
+              return (
+                <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-2 flex flex-col items-center gap-1 text-center">
+                  <p className="text-gray-500" style={{ fontSize: "10px" }}>{shortDay}</p>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-gray-950" style={{ backgroundColor: aqiColor(p.aqi) }}>{p.aqi}</div>
+                  <p className="text-gray-400 leading-tight" style={{ fontSize: "9px" }}>{p.label?.split(" ")[0]}</p>
+                  <p className="text-gray-600 leading-tight" style={{ fontSize: "8px" }}>{p.confidence}%</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-1">
+            {predicted.slice(0, 3).map((p, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-gray-400 bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-1.5">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: aqiColor(p.aqi) }} />
+                <span className="text-gray-500 flex-shrink-0">{new Date(p.date).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" })}:</span>
+                <span>{p.tip}</span>
+                {p.weather_impact !== 0 && <span className={`ml-auto flex-shrink-0 text-xs ${p.weather_impact > 0 ? "text-red-400" : "text-emerald-400"}`}>{p.weather_impact > 0 ? "+" : ""}{p.weather_impact}% weather</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Weather insight */}
+      {data.weather_factors?.analysis && (
+        <div className="flex items-start gap-2 text-xs text-gray-400 bg-gray-900/50 border border-gray-800 rounded-xl px-3 py-2">
+          <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <span>{data.weather_factors.analysis}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -465,9 +387,9 @@ function LocalAQICard({ station }) {
         <p className="text-xs text-gray-400 mb-1">Air quality near you</p>
         <p className="text-lg font-bold text-white">{label}</p>
         <p className="text-xs text-gray-400 mt-1 truncate">
-          {station.station_name} Â· {Math.round(station.distance_km)}km away
+          {station.station_name} • {Math.round(station.distance_km)}km away
         </p>
-        <p className="text-xs text-gray-500">{station.city}, {station.state} Â· {station.dominant_pollutant}</p>
+        <p className="text-xs text-gray-500">{station.city}, {station.state} • {station.dominant_pollutant}</p>
       </div>
     </div>
   );
@@ -531,7 +453,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
     const zoom = localLat && localLng ? 11 : 5;
     const map = L.map(mapRef.current).setView(center, zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "Â© OpenStreetMap contributors",
+      attribution: "© OpenStreetMap contributors",
     }).addTo(map);
     mapInstanceRef.current = map;
   }, [mapReady]);
@@ -548,7 +470,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
 
     const userMarker = L.circleMarker([localLat, localLng], {
       radius: 10, fillColor: "#3b82f6", color: "#fff", weight: 2, fillOpacity: 1,
-    }).addTo(map).bindPopup(`<b>ðŸ“� ${t.mapTabYourLoc}</b>`);
+    }).addTo(map).bindPopup(`<b>📍 ${t.mapTabYourLoc}</b>`);
     markersRef.current.push(userMarker);
 
     stations.forEach((s) => {
@@ -562,7 +484,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
       }).addTo(map);
       circle.bindPopup(`
         <div style="font-family:sans-serif;min-width:160px">
-          <b>ðŸ�›ï¸� ${s.station_name}</b><br/>
+          <b>🏢 ${s.station_name}</b><br/>
           <span style="color:#666">${s.city}, ${s.state}</span><br/>
           <span style="font-size:20px;font-weight:bold;color:${color}">${Math.round(aqi)}</span>
           <span style="color:#666"> AQI</span><br/>
@@ -585,11 +507,11 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
       try { analysis = JSON.parse(r.gemini_analysis || "{}"); } catch { }
       marker.bindPopup(`
         <div style="font-family:sans-serif;min-width:160px">
-          <b>ðŸ‘¤ Citizen Report</b><br/>
+          <b>👤 Citizen Report</b><br/>
           <span style="color:#666">${r.location || "Unknown location"}</span><br/>
           <span style="font-weight:bold;color:${color}">Severity ${severity}/5</span><br/>
           <small>${(r.text || "").slice(0, 80)}...</small><br/>
-          ${analysis.advisory ? `<small style="color:#888">ðŸ’¡ ${analysis.advisory}</small>` : ""}
+          ${analysis.advisory ? `<small style="color:#888">💡 ${analysis.advisory}</small>` : ""}
         </div>
       `);
       markersRef.current.push(marker);
@@ -615,7 +537,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
     <div className="space-y-4">
       {!localLat && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 text-center space-y-3">
-          <p className="text-2xl">ðŸ“�</p>
+          <p className="text-2xl">📍</p>
           <p className="text-sm text-gray-300 font-medium">{t.mapTabShareLoc}</p>
           <p className="text-xs text-gray-500">{t.mapTabShowAqi}</p>
           <button
@@ -644,7 +566,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
               disabled={locating}
               className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
             >
-              {locating ? "..." : `ðŸ“� ${t.mapTabRefresh}`}
+              {locating ? "..." : `📍 ${t.mapTabRefresh}`}
             </button>
           </div>
         </div>
@@ -694,7 +616,7 @@ function AlertsTab({ userLat, userLng, t }) {
   if (!userLat) {
     return (
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center space-y-4">
-        <p className="text-4xl">ðŸ“�</p>
+        <p className="text-4xl">📍</p>
         <p className="text-lg text-white font-medium">{t.alertsTabLocReq}</p>
         <p className="text-sm text-gray-400">{t.alertsTabLocReqDesc}</p>
         <button
@@ -723,34 +645,62 @@ function AlertsTab({ userLat, userLng, t }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold text-white mb-4">âš ï¸� {t.alertsTabLocalAlerts}</h3>
-      {alerts.map((alert, i) => {
-        let analysis = {};
-        try { analysis = JSON.parse(alert.gemini_analysis || "{}"); } catch { }
-        const severity = alert.severity;
-        const colorClass = severity === 5 ? 'border-purple-500 bg-purple-900/20' :
-          severity === 4 ? 'border-red-500 bg-red-900/20' :
-            'border-orange-500 bg-orange-900/20';
-        const labelClass = severity === 5 ? 'text-purple-400' :
-          severity === 4 ? 'text-red-400' :
-            'text-orange-400';
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-white">⚠️ {t.alertsTabLocalAlerts}</h3>
+        <span className="text-xs text-gray-500">{alerts.length} report{alerts.length !== 1 ? "s" : ""} within 25km</span>
+      </div>
 
-        return (
-          <div key={i} className={`border-l-4 ${colorClass} bg-gray-900 rounded-r-xl p-5 shadow-lg`}>
-            <div className="flex justify-between items-start mb-2">
-              <span className={`font-bold flex items-center gap-2 ${labelClass}`}>
-                {severity === 5 ? "ðŸš¨ EMERGENCY" : severity === 4 ? "ðŸ›‘ HAZARDOUS" : "âš ï¸� UNHEALTHY"}
-              </span>
-              <span className="text-xs text-gray-500">{new Date(alert.timestamp || Date.now()).toLocaleDateString()}</span>
+      {/* Severity scale legend */}
+      <div className="grid grid-cols-5 gap-1 text-center">
+        {[
+          { level: 1, label: "Good",      color: "bg-green-900 border-green-700 text-green-300",   icon: "✅" },
+          { level: 2, label: "Moderate",  color: "bg-yellow-900 border-yellow-700 text-yellow-300", icon: "🟡" },
+          { level: 3, label: "Unhealthy", color: "bg-orange-900 border-orange-700 text-orange-300", icon: "⚠️" },
+          { level: 4, label: "Hazardous", color: "bg-red-900 border-red-700 text-red-300",          icon: "🛑" },
+          { level: 5, label: "Emergency", color: "bg-purple-900 border-purple-700 text-purple-300", icon: "🚨" },
+        ].map(({ level, label, color, icon }) => {
+          const count = alerts.filter(a => a.severity === level).length;
+          return (
+            <div key={level} className={`border rounded-lg px-2 py-2 ${color} ${count > 0 ? "opacity-100" : "opacity-30"}`}>
+              <div className="text-base">{icon}</div>
+              <div className="text-xs font-bold mt-0.5">{level}</div>
+              <div className="text-xs opacity-80">{label}</div>
+              {count > 0 && <div className="text-xs font-bold mt-0.5">{count} report{count !== 1 ? "s" : ""}</div>}
             </div>
-            <p className="text-sm text-gray-300 font-medium mb-2">{alert.location}</p>
-            {analysis.summary && <p className="text-sm text-gray-400 mb-3">{analysis.summary}</p>}
-            {analysis.advisory && (
-              <div className="bg-gray-800/80 p-3 rounded-lg border border-gray-700/50">
-                <span className="text-xs font-bold text-gray-300 block mb-1">Advisory:</span>
-                <span className="text-sm text-gray-300">{analysis.advisory}</span>
-              </div>
-            )}
+          );
+        })}
+      </div>
+
+      {/* Reports grouped by severity (5 → 1) */}
+      {[5, 4, 3].map((sev) => {
+        const group = alerts.filter(a => a.severity === sev);
+        if (group.length === 0) return null;
+        const cfg = {
+          5: { bg: "bg-purple-900/20 border-purple-500", label: "🚨 EMERGENCY", tc: "text-purple-300" },
+          4: { bg: "bg-red-900/20 border-red-500",       label: "🛑 HAZARDOUS", tc: "text-red-300" },
+          3: { bg: "bg-orange-900/20 border-orange-500", label: "⚠️ UNHEALTHY", tc: "text-orange-300" },
+        }[sev];
+        return (
+          <div key={sev}>
+            <p className={`text-xs font-bold mb-1.5 ${cfg.tc}`}>{cfg.label} — {group.length} report{group.length !== 1 ? "s" : ""}</p>
+            <div className="grid grid-cols-1 gap-2">
+              {group.map((alert, i) => {
+                let analysis = {};
+                try { analysis = JSON.parse(alert.gemini_analysis || "{}"); } catch { }
+                return (
+                  <div key={i} className={`border-l-4 ${cfg.bg} border rounded-r-lg p-3 flex gap-3 items-start`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm text-white font-semibold truncate">{alert.location}</p>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{new Date(alert.timestamp || Date.now()).toLocaleDateString("en", { month: "short", day: "numeric" })}</span>
+                      </div>
+                      {analysis.summary && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{analysis.summary}</p>}
+                      {analysis.advisory && <p className="text-xs text-emerald-400 mt-0.5 line-clamp-1">💡 {analysis.advisory}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
@@ -1030,51 +980,6 @@ export default function App() {
   const recognitionRef = useRef(null);
   const fileRef = useRef();
 
-  const [user, setUser] = useState(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleAuth = async () => {
-    if (!authEmail || !authPassword) {
-      setAuthError("Email and password required.");
-      return;
-    }
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      let res;
-      if (authMode === "signup") {
-        res = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-      } else {
-        res = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-      }
-      if (res.error) throw res.error;
-      setShowAuthModal(false);
-    } catch (e) {
-      setAuthError(e.message);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   useEffect(() => {
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1211,17 +1116,13 @@ export default function App() {
 
   async function handleSubmit() {
     setError(null);
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
     if (!text) { setError(t.describe + " is required."); return; }
     if (!lat || !lng) { setError(t.location + " is required."); return; }
     setLoading(true);
 
     let weatherContext = "";
     if (weatherData) {
-      weatherContext = ` [Weather context at location: ${weatherData.temperature}Â°C, Humidity ${weatherData.humidity}%, Wind ${weatherData.wind_speed} km/h]`;
+      weatherContext = ` [Weather context at location: ${weatherData.temperature}°C, Humidity ${weatherData.humidity}%, Wind ${weatherData.wind_speed} km/h]`;
     }
 
     try {
@@ -1236,7 +1137,6 @@ export default function App() {
       fd.append("lat", lat);
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
-      if (user?.email) fd.append("email", user.email);
       if (photo) fd.append("photo", photo);
       const res = await fetch(`${API}/report`, { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
@@ -1256,7 +1156,7 @@ export default function App() {
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans relative">
       <header className="border-b border-[var(--border-subtle)] px-6 py-4 flex items-center justify-between glass-card rounded-none sticky top-0 z-50">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">ðŸŒ¿ {t.title}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">🌿 {t.title}</h1>
           <p className="text-xs text-[var(--text-secondary)]">{t.sub}</p>
         </div>
 
@@ -1285,19 +1185,6 @@ export default function App() {
                 <p className="text-xs font-medium text-white">{aqiLabel(nearestStation.aqi)}</p>
                 <p className="text-xs text-gray-400">{nearestStation.city}</p>
               </div>
-            </div>
-          )}
-
-          {user ? (
-            <div className="hidden sm:flex items-center gap-2 border-l border-gray-700 pl-4 ml-2">
-              <span className="text-xs text-emerald-400 truncate max-w-[120px]">{user.email}</span>
-              <button onClick={handleLogout} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-white border border-gray-700 transition-colors">Logout</button>
-            </div>
-          ) : (
-            <div className="border-l border-gray-700 pl-4 ml-2">
-              <button onClick={() => setShowAuthModal(true)} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-medium flex items-center gap-1.5 transition-colors">
-                <User size={14} /> Sign In
-              </button>
             </div>
           )}
         </div>
@@ -1347,7 +1234,7 @@ export default function App() {
                   <Thermometer className="text-emerald-400 w-5 h-5" />
                   <div>
                     <p className="text-xs text-gray-400">Local Weather</p>
-                    <p className="text-sm font-semibold">{weatherData.temperature}Â°C, {weatherData.condition}</p>
+                    <p className="text-sm font-semibold">{weatherData.temperature}°C, {weatherData.condition}</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -1396,7 +1283,7 @@ export default function App() {
                   <img src={preview} alt="preview" className="max-h-48 rounded-md object-cover" />
                 ) : (
                   <>
-                    <span className="text-3xl">ðŸ“·</span>
+                    <span className="text-3xl">📸</span>
                     <p className="text-sm text-gray-400">{t.photo}</p>
                   </>
                 )}
@@ -1418,11 +1305,11 @@ export default function App() {
                   onClick={handleLocation}
                   className="bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-4 py-2 text-sm transition-colors"
                 >
-                  ðŸ“� Detect
+                  📍 Detect
                 </button>
               </div>
               {lat && lng && (
-                <p className="text-xs text-emerald-500">âœ“ Coordinates locked: {lat}, {lng}</p>
+                <p className="text-xs text-emerald-500">✓ Coordinates locked: {lat}, {lng}</p>
               )}
             </div>
 
@@ -1458,7 +1345,7 @@ export default function App() {
                 <div className={`${severityStyle.bg} border ${severityStyle.border} rounded-xl px-5 py-4 space-y-3`}>
                   <div className="flex items-center justify-between">
                     <p className={`font-semibold ${severityStyle.text}`}>
-                      âœ“ Report submitted â€” Severity {severity}/5 ({severityStyle.label})
+                      ✓ Report submitted — Severity {severity}/5 ({severityStyle.label})
                     </p>
                     {result.analysis?.estimated_aqi_range && (
                       <span className="text-xs px-3 py-1.5 rounded-full font-bold bg-gray-800/80 border border-gray-600" style={{ color: aqiColor(parseInt(result.analysis.estimated_aqi_range.split("-")[0]) || 100) }}>
@@ -1490,121 +1377,56 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Horizontal Scrolling Analysis Cards */}
-                <div className="flex overflow-x-auto space-x-4 snap-x pb-4 scrollbar-hide">
-                  {/* Detailed Visual Analysis */}
+                {/* Analysis grid — 2 columns, no scroll */}
+                <div className="grid grid-cols-2 gap-2">
                   {result.analysis?.detailed_visual_analysis && (
-                    <div className="flex-shrink-0 w-[280px] snap-center bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 flex flex-col">
-                      <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                        <Camera className="text-cyan-400 w-4 h-4" /> Detailed Visual Analysis
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
+                        <Camera className="text-cyan-400 w-3.5 h-3.5" /> Visual
                       </p>
-                      <p className="text-sm text-gray-400 leading-relaxed">{result.analysis.detailed_visual_analysis}</p>
+                      <p className="text-xs text-gray-400 line-clamp-2">{result.analysis.detailed_visual_analysis}</p>
                     </div>
                   )}
-
-                  {/* Possible Sources & Root Causes */}
-                  {(result.analysis?.possible_sources?.length > 0 || result.analysis?.root_causes) && (
-                    <div className="flex-shrink-0 w-[280px] snap-center bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 flex flex-col space-y-3 overflow-y-auto">
-                      {result.analysis?.possible_sources?.length > 0 && (
-                        <div>
-                          <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                            <Factory className="text-amber-400 w-4 h-4" /> Possible Causes
-                          </p>
-                          <ul className="space-y-2 pl-1">
-                            {result.analysis.possible_sources.map((src, i) => (
-                              <li key={i} className="text-sm text-gray-400 flex items-start gap-2">
-                                <span className="text-amber-500 mt-0.5 flex-shrink-0">▸</span>
-                                <span>{src}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {result.analysis?.root_causes && (
-                        <div className="border-t border-gray-700/50 pt-3">
-                          <p className="font-medium text-sm text-white mb-1 flex items-center gap-1.5">
-                            <Globe className="text-orange-400 w-4 h-4" /> Root Causes
-                          </p>
-                          <p className="text-sm text-gray-400 leading-relaxed">{result.analysis.root_causes}</p>
-                        </div>
-                      )}
+                  {result.analysis?.possible_sources?.length > 0 && (
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
+                        <Factory className="text-amber-400 w-3.5 h-3.5" /> Sources
+                      </p>
+                      <ul className="space-y-0.5">
+                        {result.analysis.possible_sources.slice(0, 2).map((src, i) => (
+                          <li key={i} className="text-xs text-gray-400 flex items-start gap-1.5">
+                            <span className="text-amber-500 flex-shrink-0">▸</span><span className="line-clamp-1">{src}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
-
-                  {/* Health Impact & Affected Groups */}
-                  {(result.analysis?.health_impact || result.analysis?.affected_groups?.length > 0) && (
-                    <div className="flex-shrink-0 w-[280px] snap-center bg-gray-900 border border-red-900/30 rounded-xl px-5 py-4 flex flex-col space-y-3 overflow-y-auto">
-                      {result.analysis?.health_impact && (
-                        <div>
-                          <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                            <Activity className="text-red-400 w-4 h-4" /> Health Impact
-                          </p>
-                          <p className="text-sm text-gray-400 leading-relaxed">{result.analysis.health_impact}</p>
-                        </div>
-                      )}
+                  {result.analysis?.health_impact && (
+                    <div className="bg-gray-900 border border-red-900/30 rounded-xl px-3 py-2.5">
+                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
+                        <Activity className="text-red-400 w-3.5 h-3.5" /> Health Risk
+                      </p>
+                      <p className="text-xs text-gray-400 line-clamp-2">{result.analysis.health_impact}</p>
                       {result.analysis?.affected_groups?.length > 0 && (
-                        <div className="border-t border-gray-700/50 pt-3">
-                          <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                            <AlertTriangle className="text-yellow-400 w-4 h-4" /> Most Affected
-                          </p>
-                          <ul className="space-y-1.5 pl-1">
-                            {result.analysis.affected_groups.map((grp, i) => (
-                              <li key={i} className="text-sm text-gray-400 flex items-start gap-2">
-                                <span className="text-yellow-500 mt-0.5 flex-shrink-0">•</span>
-                                <span>{grp}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        <p className="text-xs text-yellow-400/70 mt-1">At risk: {result.analysis.affected_groups.slice(0, 2).join(", ")}</p>
                       )}
                     </div>
                   )}
-
-                  {/* Safety Measures */}
-                  {(result.analysis?.precautions?.length > 0 || result.analysis?.measures?.length > 0) && (
-                    <div className="flex-shrink-0 w-[280px] snap-center bg-gray-900 border border-emerald-900/30 rounded-xl px-5 py-4 flex flex-col space-y-3 overflow-y-auto">
-                      {result.analysis?.precautions?.length > 0 && (
-                        <div>
-                          <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                            <Shield className="text-blue-400 w-4 h-4" /> Safety Precautions
-                          </p>
-                          <ul className="space-y-1.5 pl-1">
-                            {result.analysis.precautions.map((prec, i) => (
-                              <li key={i} className="text-sm text-gray-400 flex items-start gap-2">
-                                <span className="text-blue-400 mt-0.5 flex-shrink-0">✧</span>
-                                <span>{prec}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {result.analysis?.measures?.length > 0 && (
-                        <div className="border-t border-gray-700/50 pt-3">
-                          <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                            <CheckCircle className="text-green-400 w-4 h-4" /> Recommended
-                          </p>
-                          <ul className="space-y-1.5 pl-1">
-                            {result.analysis.measures.map((meas, i) => (
-                              <li key={i} className="text-sm text-gray-400 flex items-start gap-2">
-                                <span className="text-green-400 mt-0.5 flex-shrink-0">→</span>
-                                <span>{meas}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Environmental Impact */}
-                  {result.analysis?.environmental_impact && (
-                    <div className="flex-shrink-0 w-[280px] snap-center bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 flex flex-col">
-                      <p className="font-medium text-sm text-white mb-2 flex items-center gap-1.5">
-                        <Leaf className="text-green-400 w-4 h-4" /> Environmental Impact
+                  {result.analysis?.precautions?.length > 0 && (
+                    <div className="bg-gray-900 border border-emerald-900/30 rounded-xl px-3 py-2.5">
+                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
+                        <Shield className="text-blue-400 w-3.5 h-3.5" /> Precautions
                       </p>
-                      <p className="text-sm text-gray-400 leading-relaxed">{result.analysis.environmental_impact}</p>
+                      <ul className="space-y-0.5">
+                        {result.analysis.precautions.slice(0, 2).map((prec, i) => (
+                          <li key={i} className="text-xs text-gray-400 flex items-start gap-1.5">
+                            <span className="text-blue-400 flex-shrink-0">✧</span><span className="line-clamp-1">{prec}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  )}                </div>
+                  )}
+                </div>
 
 
                 {/* Advisory */}
@@ -1638,7 +1460,7 @@ export default function App() {
           <div className="space-y-4">
             {!lat || !lng ? (
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center space-y-4">
-                <p className="text-4xl">ðŸŒ�</p>
+                <p className="text-4xl"></p>
                 <p className="text-lg text-white font-medium">Location Required for Prediction</p>
                 <p className="text-sm text-gray-400 max-w-md mx-auto">
                   To provide an accurate AQI prediction, we need to know your coordinates. Please go to the "Report" tab and detect your location first.
@@ -1672,36 +1494,6 @@ export default function App() {
           <MunicipalTab userLat={userLat} userLng={userLng} t={t} />
         )}
       </main>
-
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] px-4 animate-in fade-in duration-200">
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative overflow-hidden">
-            <div className="absolute -top-16 -right-16 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
-            <h2 className="text-xl font-bold text-white mb-2">{authMode === 'login' ? 'Sign In' : 'Create Account'}</h2>
-            <p className="text-xs text-gray-400 mb-6">You need an account to submit a report so we can verify and follow up via email.</p>
-
-            {authError && <div className="mb-4 text-xs text-red-400 bg-red-950/40 p-3 rounded-lg border border-red-900/50 flex items-start gap-2"><AlertTriangle size={14} className="mt-0.5 flex-shrink-0" /> {authError}</div>}
-
-            <div className="space-y-4 relative z-10">
-              <input type="email" placeholder="Email Address" value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
-              <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
-
-              <button onClick={handleAuth} disabled={authLoading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                {authLoading ? <Activity size={18} className="animate-spin" /> : <Shield size={18} />}
-                {authMode === 'login' ? 'Sign In securely' : 'Sign Up securely'}
-              </button>
-
-              <div className="pt-2">
-                <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="w-full text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
-                  {authMode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-                </button>
-              </div>
-              <button onClick={() => setShowAuthModal(false)} className="w-full text-xs font-medium text-gray-500 hover:text-gray-400 mt-2 transition-colors">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
