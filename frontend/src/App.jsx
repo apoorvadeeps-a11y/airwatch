@@ -997,11 +997,6 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
   const fileRef = useRef();
-  
-  useEffect(() => {
-    console.log("API URL being used:", API);
-    alert(`Testing API URL: ${API}`);
-  }, []);
 
   useEffect(() => {
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
