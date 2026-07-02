@@ -491,6 +491,14 @@ def read_root():
 def health():
     return {"status": "ok", "service": "airwatch-backend"}
 
+@app.get("/test-env")
+def test_env():
+    return {
+        "has_supabase_url": bool(SUPABASE_URL),
+        "has_supabase_key": bool(SUPABASE_ANON_KEY),
+        "has_gemini_key": bool(GEMINI_KEYS),
+        "dev_mode": DEV_MODE
+    }
 
 @app.get("/nearest-station")
 async def nearest_station(lat: float, lng: float):
@@ -562,44 +570,47 @@ async def submit_report(
     email: str = Form(None),
     photo: UploadFile = File(None),
 ):
-    async with httpx.AsyncClient() as client:
-        station_res = await client.post(
-            f"{SUPABASE_URL}/rest/v1/rpc/nearest_aqi_station",
-            headers=HEADERS,
-            json={"user_lat": lat, "user_lng": lng}
+    try:
+        print(f"Received report: {text}, lat: {lat}, lng: {lng}")
+        
+        async with httpx.AsyncClient() as client:
+            station_res = await client.post(
+                f"{SUPABASE_URL}/rest/v1/rpc/nearest_aqi_station",
+                headers=HEADERS,
+                json={"user_lat": lat, "user_lng": lng}
+            )
+        stations = station_res.json()
+        station = stations[0] if stations else None
+
+        station_context = (
+            f"Nearest government station: {station['station_name']} "
+            f"({station['city']}, {station['state']}) — "
+            f"AQI {station['aqi']}, dominant pollutant: {station['dominant_pollutant']}, "
+            f"distance: {round(station['distance_km'], 1)}km away."
+            if station else "No nearby government station data available."
         )
-    stations = station_res.json()
-    station = stations[0] if stations else None
 
-    station_context = (
-        f"Nearest government station: {station['station_name']} "
-        f"({station['city']}, {station['state']}) — "
-        f"AQI {station['aqi']}, dominant pollutant: {station['dominant_pollutant']}, "
-        f"distance: {round(station['distance_km'], 1)}km away."
-        if station else "No nearby government station data available."
-    )
+        # --- Check cache first ---
+        cache_key = _cache_key(text, lat, lng, has_photo=bool(photo))
+        cached = _get_cached(cache_key)
+        if cached:
+            analysis = cached
+            print(f"Using cached analysis for report")
+        elif DEV_MODE:
+            analysis = {
+                "severity": 3,
+                "pollutant_type": "PM2.5",
+                "visual_indicators": "DEV MODE - no real analysis",
+                "government_consistency": "Consistent",
+                "advisory": "Air quality is moderate. Sensitive groups should limit outdoor activity.",
+                "summary": f"User reported pollution near {location}. Nearest government station {station['station_name'] if station else 'unknown'} shows AQI {station['aqi'] if station else 'N/A'}."
+            }
+        else:
+            photo_instruction = ""
+            if photo:
+                photo_instruction = "PHOTO: Describe visible pollution in 10 words max (smoke color/density, haze, waste, sky clarity)."
 
-    # --- Check cache first ---
-    cache_key = _cache_key(text, lat, lng, has_photo=bool(photo))
-    cached = _get_cached(cache_key)
-    if cached:
-        analysis = cached
-        print(f"Using cached analysis for report")
-    elif DEV_MODE:
-        analysis = {
-            "severity": 3,
-            "pollutant_type": "PM2.5",
-            "visual_indicators": "DEV MODE - no real analysis",
-            "government_consistency": "Consistent",
-            "advisory": "Air quality is moderate. Sensitive groups should limit outdoor activity.",
-            "summary": f"User reported pollution near {location}. Nearest government station {station['station_name'] if station else 'unknown'} shows AQI {station['aqi'] if station else 'N/A'}."
-        }
-    else:
-        photo_instruction = ""
-        if photo:
-            photo_instruction = "PHOTO: Describe visible pollution in 10 words max (smoke color/density, haze, waste, sky clarity)."
-
-        prompt = f"""You are an air quality expert. Be EXTREMELY BRIEF — every text field must be 10 words or fewer. No long sentences.
+            prompt = f"""You are an air quality expert. Be EXTREMELY BRIEF — every text field must be 10 words or fewer. No long sentences.
 
 USER REPORT:
 Location: {location} (lat: {lat}, lng: {lng})
@@ -629,74 +640,79 @@ Respond in this EXACT JSON format:
 }}
 IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
 
-        try:
-            photo_bytes = None
-            mime_type = None
-            if photo:
-                photo_bytes = await photo.read()
-                mime_type = photo.content_type
-                # Compress image to save tokens
-                photo_bytes, mime_type = compress_image(photo_bytes, mime_type)
-
-            raw = await call_gemini(prompt, photo_bytes, mime_type)
-
-            # Robust JSON extraction: try multiple strategies
-            cleaned = raw.strip()
-            # Strip markdown code fences
-            if "\'\'\'" in cleaned:
-                match= re.search(r'\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`', cleaned)
-                if match:
-                    cleaned = match.group(1).strip()
-            # Try direct parse
             try:
-                analysis = json.loads(cleaned)
-            except json.JSONDecodeError:
-                # Try to find JSON object in the text
-                json_match = re.search(r'\{[\s\S]*\}', cleaned)
-                if json_match:
-                    analysis = json.loads(json_match.group())
-                else:
-                    raise ValueError(f"Could not extract JSON from Gemini response: {cleaned[:200]}")
+                photo_bytes = None
+                mime_type = None
+                if photo:
+                    photo_bytes = await photo.read()
+                    mime_type = photo.content_type
+                    # Compress image to save tokens
+                    photo_bytes, mime_type = compress_image(photo_bytes, mime_type)
 
-            # Cache the successful response
-            _set_cached(cache_key, analysis)
+                raw = await call_gemini(prompt, photo_bytes, mime_type)
 
-        except Exception as e:
-            print(f"Gemini call failed: {type(e).__name__}: {e}")
-            print(f"Falling back to local keyword analysis...")
-            # Smart local fallback instead of generic error
-            analysis = local_fallback_analysis(text, location, station)
+                # Robust JSON extraction: try multiple strategies
+                cleaned = raw.strip()
+                # Strip markdown code fences
+                if "\'\'\'" in cleaned:
+                    match= re.search(r'\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`', cleaned)
+                    if match:
+                        cleaned = match.group(1).strip()
+                # Try direct parse
+                try:
+                    analysis = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    # Try to find JSON object in the text
+                    json_match = re.search(r'\{[\s\S]*\}', cleaned)
+                    if json_match:
+                        analysis = json.loads(json_match.group())
+                    else:
+                        raise ValueError(f"Could not extract JSON from Gemini response: {cleaned[:200]}")
 
-    severity = analysis.get("severity", 3)
+                # Cache the successful response
+                _set_cached(cache_key, analysis)
 
-    async with httpx.AsyncClient() as client:
-        await client.post(
-            f"{SUPABASE_URL}/rest/v1/reports",
-            headers={**HEADERS, "Prefer": "return=representation"},
-            json={
-                "text": text,
-                "location": location,
-                "lat": lat,
-                "lng": lng,
-                "photo_url": None,
-                "gemini_analysis": json.dumps(analysis),
-                "severity": severity,
-            }
-        )
+            except Exception as e:
+                print(f"Gemini call failed: {type(e).__name__}: {e}")
+                print(f"Falling back to local keyword analysis...")
+                # Smart local fallback instead of generic error
+                analysis = local_fallback_analysis(text, location, station)
 
-    # --- Send Thank You Email (Mock for Hackathon) ---
-    if email:
-        print(f"\n[EMAIL SYSTEM] Sending Thank You email to: {email}")
-        print(f"[EMAIL SYSTEM] Subject: Thank You for Your AirWatch Report!")
-        print(f"[EMAIL SYSTEM] Body: We received your pollution report near {location}. "
-              f"Your contribution helps keep the community safe! Estimated Severity: {severity}/5.")
-        print("[EMAIL SYSTEM] Status: Sent Successfully (Simulated)\n")
+        severity = analysis.get("severity", 3)
 
-    return {
-        "success": True,
-        "analysis": analysis,
-        "station": station,
-    }
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{SUPABASE_URL}/rest/v1/reports",
+                headers={**HEADERS, "Prefer": "return=representation"},
+                json={
+                    "text": text,
+                    "location": location,
+                    "lat": lat,
+                    "lng": lng,
+                    "photo_url": None,
+                    "gemini_analysis": json.dumps(analysis),
+                    "severity": severity,
+                }
+            )
+
+        # --- Send Thank You Email (Mock for Hackathon) ---
+        if email:
+            print(f"\n[EMAIL SYSTEM] Sending Thank You email to: {email}")
+            print(f"[EMAIL SYSTEM] Subject: Thank You for Your AirWatch Report!")
+            print(f"[EMAIL SYSTEM] Body: We received your pollution report near {location}. "
+                  f"Your contribution helps keep the community safe! Estimated Severity: {severity}/5.")
+            print("[EMAIL SYSTEM] Status: Sent Successfully (Simulated)\n")
+
+        return {
+            "success": True,
+            "analysis": analysis,
+            "station": station,
+        }
+    except Exception as e:
+        import traceback
+        print(f"Error in /report: {str(e)}")
+        print(traceback.format_exc())
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 @app.get("/stations")
