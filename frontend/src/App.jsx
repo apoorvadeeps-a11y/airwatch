@@ -4,6 +4,8 @@ import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTrian
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
 
 function resolveApiBase() {
+  const custom = localStorage.getItem('airwatch_api_url');
+  if (custom) return custom.replace(/\/$/, "");
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, "");
   const { protocol, hostname } = window.location;
   return `${protocol}//${hostname}:8000`;
@@ -995,8 +997,12 @@ export default function App() {
   const [nearestStation, setNearestStation] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [customApiUrl, setCustomApiUrl] = useState(localStorage.getItem('airwatch_api_url') || "");
   const recognitionRef = useRef(null);
   const fileRef = useRef();
+  
+  // Use custom API URL if set, otherwise use default
+  const activeApiUrl = customApiUrl || API;
 
   useEffect(() => {
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
@@ -1205,7 +1211,7 @@ export default function App() {
       // #region agent log
       agentLog("App.jsx:submit", "report submit start", { api: API, lat, lng }, "A");
       // #endregion
-      const res = await fetch(`${API}/report`, { method: "POST", body: fd });
+      const res = await fetch(`${activeApiUrl}/report`, { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       // #region agent log
@@ -1216,7 +1222,11 @@ export default function App() {
       // #region agent log
       agentLog("App.jsx:submit", "report submit failed", { api: API, error: String(e) }, "A");
       // #endregion
-      setError(`Submit failed: ${e.message}`);
+      let errorMsg = e.message;
+      if (errorMsg === "Failed to fetch") {
+         errorMsg = `Failed to connect to ${API}. If on mobile, your browser might be blocking the request. Try setting a Custom API URL in settings.`;
+      }
+      setError(`Submit failed: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -1567,6 +1577,37 @@ export default function App() {
           <MunicipalTab userLat={userLat} userLng={userLng} t={t} />
         )}
       </main>
+
+      {/* Settings / API URL Fallback Footer */}
+      <footer className="w-full bg-gray-900 border-t border-gray-800 p-4 mt-8">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-gray-500">
+            Current Backend URL: <span className="font-mono text-gray-400">{activeApiUrl}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input 
+              type="text" 
+              placeholder="Custom Backend URL (e.g. https://...)" 
+              value={customApiUrl}
+              onChange={(e) => setCustomApiUrl(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-white placeholder-gray-500 w-64 focus:outline-none focus:border-emerald-500"
+            />
+            <button 
+              onClick={() => {
+                if (customApiUrl) {
+                  localStorage.setItem('airwatch_api_url', customApiUrl);
+                } else {
+                  localStorage.removeItem('airwatch_api_url');
+                }
+                window.location.reload();
+              }}
+              className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded transition-colors"
+            >
+              Save & Reload
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
