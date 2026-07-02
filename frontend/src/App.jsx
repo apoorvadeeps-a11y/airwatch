@@ -2,7 +2,25 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
 
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+function resolveApiBase() {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, "");
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:8000`;
+}
+
+const API = resolveApiBase();
+
+// #region agent log
+function agentLog(location, message, data, hypothesisId) {
+  const payload = { sessionId: "d825a9", location, message, data, timestamp: Date.now(), hypothesisId };
+  fetch(`${window.location.protocol}//${window.location.hostname}:8000/debug-log`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+// #endregion
 
 const TRANSLATIONS = {
   en: {
@@ -979,6 +997,11 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
   const fileRef = useRef();
+  
+  useEffect(() => {
+    console.log("API URL being used:", API);
+    alert(`Testing API URL: ${API}`);
+  }, []);
 
   useEffect(() => {
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
@@ -1039,6 +1062,38 @@ export default function App() {
   };
 
   useEffect(() => {
+    // #region agent log
+    (async () => {
+      const env = {
+        href: window.location.href,
+        hostname: window.location.hostname,
+        apiBase: API,
+        isSecureContext: window.isSecureContext,
+        userAgent: navigator.userAgent.slice(0, 120),
+      };
+      agentLog("App.jsx:mount", "client environment", env, "A");
+
+      const localhostUrl = "http://localhost:8000/health";
+      let localhostOk = false;
+      try {
+        const r = await fetch(localhostUrl, { signal: AbortSignal.timeout(4000) });
+        localhostOk = r.ok;
+      } catch (e) {
+        agentLog("App.jsx:mount", "localhost health failed", { error: String(e) }, "A");
+      }
+
+      let hostnameOk = false;
+      try {
+        const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(4000) });
+        hostnameOk = r.ok;
+      } catch (e) {
+        agentLog("App.jsx:mount", "hostname API health failed", { api: API, error: String(e) }, "A");
+      }
+
+      agentLog("App.jsx:mount", "API reachability", { localhostOk, hostnameOk, apiBase: API }, "A");
+    })();
+    // #endregion
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -1050,12 +1105,26 @@ export default function App() {
           setLng(lo.toFixed(5));
           const locName = await fetchLocality(la, lo);
           setLocationDisplay(locName);
+          // #region agent log
+          agentLog("App.jsx:geo", "geolocation success", { la, lo }, "D");
+          // #endregion
           fetch(`${API}/nearest-station?lat=${la}&lng=${lo}`)
             .then((r) => r.json())
             .then(setNearestStation)
             .catch(() => { });
         },
-        () => { }
+        (err) => {
+          // #region agent log
+          agentLog("App.jsx:geo", "geolocation failed", {
+            code: err.code,
+            message: err.message,
+            isSecureContext: window.isSecureContext,
+          }, "D");
+          // #endregion
+          if (!window.isSecureContext && window.location.hostname !== "localhost") {
+            setError("Location blocked: mobile browsers require HTTPS for GPS on local networks. Enter coordinates manually or use Detect after allowing location.");
+          }
+        }
       );
     }
   }, []);
@@ -1138,11 +1207,20 @@ export default function App() {
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
       if (photo) fd.append("photo", photo);
+      // #region agent log
+      agentLog("App.jsx:submit", "report submit start", { api: API, lat, lng }, "A");
+      // #endregion
       const res = await fetch(`${API}/report`, { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+      // #region agent log
+      agentLog("App.jsx:submit", "report submit success", { severity: data?.analysis?.severity }, "A");
+      // #endregion
       setResult(data);
     } catch (e) {
+      // #region agent log
+      agentLog("App.jsx:submit", "report submit failed", { api: API, error: String(e) }, "A");
+      // #endregion
       setError(`Submit failed: ${e.message}`);
     } finally {
       setLoading(false);
@@ -1458,22 +1536,22 @@ export default function App() {
 
         {tab === "Prediction" && (
           <div className="space-y-4">
-            {!lat || !lng ? (
+            {!(userLat && userLng) && !(lat && lng) ? (
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center space-y-4">
                 <p className="text-4xl"></p>
-                <p className="text-lg text-white font-medium">Location Required for Prediction</p>
+                <p className="text-lg text-white font-medium">{t.aqiPredLocReq}</p>
                 <p className="text-sm text-gray-400 max-w-md mx-auto">
-                  To provide an accurate AQI prediction, we need to know your coordinates. Please go to the "Report" tab and detect your location first.
+                  {t.aqiPredLocReqDesc}
                 </p>
                 <button
                   onClick={() => setTab("Report")}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors inline-block mt-2"
                 >
-                  Go to Report Tab
+                  {t.alertsTabGoToReport}
                 </button>
               </div>
             ) : (
-              <AQIPredictorChart lat={lat} lng={lng} t={t} />
+              <AQIPredictorChart lat={userLat || parseFloat(lat)} lng={userLng || parseFloat(lng)} t={t} />
             )}
           </div>
         )}

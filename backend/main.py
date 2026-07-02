@@ -1,5 +1,5 @@
 import base64, json, os, re, io, hashlib, time, asyncio
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import httpx
@@ -21,6 +21,37 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 GEMINI_KEYS = [k.strip() for k in os.getenv("GEMINI_API_KEYS", os.getenv("GEMINI_API_KEY", "")).split(",") if k.strip()]
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+
+DEBUG_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "debug-d825a9.log")
+
+def _write_debug(entry: dict):
+    # #region agent log
+    try:
+        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+    # #endregion
+
+@app.middleware("http")
+async def debug_request_middleware(request: Request, call_next):
+    # #region agent log
+    if request.url.path != "/debug-log":
+        _write_debug({
+            "sessionId": "d825a9",
+            "location": "main.py:middleware",
+            "message": "incoming request",
+            "data": {
+                "path": request.url.path,
+                "client": request.client.host if request.client else None,
+                "origin": request.headers.get("origin"),
+                "userAgent": (request.headers.get("user-agent") or "")[:120],
+            },
+            "timestamp": int(time.time() * 1000),
+            "hypothesisId": "B",
+        })
+    # #endregion
+    return await call_next(request)
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -490,6 +521,15 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "airwatch-backend"}
+
+
+@app.post("/debug-log")
+async def debug_log(payload: dict):
+    # #region agent log
+    payload.setdefault("sessionId", "d825a9")
+    _write_debug(payload)
+    return {"ok": True}
+    # #endregion
 
 @app.get("/test-env")
 def test_env():
