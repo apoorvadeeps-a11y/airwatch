@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
 
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const TRANSLATIONS = {
   en: {
