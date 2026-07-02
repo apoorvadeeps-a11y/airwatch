@@ -530,7 +530,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
         radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9, dashArray: "4",
       }).addTo(map);
       let analysis = {};
-      try { analysis = JSON.parse(r.gemini_analysis || "{}"); } catch { }
+      try { analysis = JSON.parse(r.gemini_analysis || "{}"); } catch (_e) { }
       marker.bindPopup(`
         <div style="font-family:sans-serif;min-width:160px">
           <b>👤 Citizen Report</b><br/>
@@ -1004,7 +1004,7 @@ export default function App() {
   const [weatherData, setWeatherData] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(() => {
-    try { return localStorage.getItem('airwatch_api_url') || ""; } catch { return ""; }
+    try { return localStorage.getItem('airwatch_api_url') || ""; } catch (_e) { return ""; }
   });
   const recognitionRef = useRef(null);
   const fileRef = useRef();
@@ -1040,6 +1040,7 @@ export default function App() {
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
+      }
     } catch (e) {
       console.warn("Speech recognition setup failed", e);
     }
@@ -1076,33 +1077,43 @@ export default function App() {
   useEffect(() => {
     // #region agent log
     (async () => {
-      const env = {
-        href: window.location.href,
-        hostname: window.location.hostname,
-        apiBase: API,
-        isSecureContext: window.isSecureContext,
-        userAgent: navigator.userAgent.slice(0, 120),
-      };
-      agentLog("App.jsx:mount", "client environment", env, "A");
-
-      const localhostUrl = "http://localhost:8000/health";
-      let localhostOk = false;
       try {
-        const r = await fetch(localhostUrl, { signal: AbortSignal.timeout(4000) });
-        localhostOk = r.ok;
-      } catch (e) {
-        agentLog("App.jsx:mount", "localhost health failed", { error: String(e) }, "A");
-      }
+        const env = {
+          href: window.location.href,
+          hostname: window.location.hostname,
+          apiBase: API,
+          isSecureContext: window.isSecureContext,
+          userAgent: navigator.userAgent.slice(0, 120),
+        };
+        agentLog("App.jsx:mount", "client environment", env, "A");
 
-      let hostnameOk = false;
-      try {
-        const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(4000) });
-        hostnameOk = r.ok;
-      } catch (e) {
-        agentLog("App.jsx:mount", "hostname API health failed", { api: API, error: String(e) }, "A");
-      }
+        const safeFetch = (url) => {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 4000);
+          return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+        };
 
-      agentLog("App.jsx:mount", "API reachability", { localhostOk, hostnameOk, apiBase: API }, "A");
+        const localhostUrl = "http://localhost:8000/health";
+        let localhostOk = false;
+        try {
+          const r = await safeFetch(localhostUrl);
+          localhostOk = r.ok;
+        } catch (e) {
+          agentLog("App.jsx:mount", "localhost health failed", { error: String(e) }, "A");
+        }
+
+        let hostnameOk = false;
+        try {
+          const r = await safeFetch(`${API}/health`);
+          hostnameOk = r.ok;
+        } catch (e) {
+          agentLog("App.jsx:mount", "hostname API health failed", { api: API, error: String(e) }, "A");
+        }
+
+        agentLog("App.jsx:mount", "API reachability", { localhostOk, hostnameOk, apiBase: API }, "A");
+      } catch (outerErr) {
+        console.warn("Agent log failed", outerErr);
+      }
     })();
     // #endregion
 

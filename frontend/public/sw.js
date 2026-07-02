@@ -1,23 +1,16 @@
-const CACHE_NAME = 'airwatch-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.svg'
-];
+// Service worker intentionally left empty to clear old caches.
+// Any previously installed service worker will be replaced by this no-op version,
+// which immediately activates and stops intercepting fetch requests.
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => self.skipWaiting());
+
+self.addEventListener('activate', (event) => {
+  // Delete ALL old caches so stale pages are never served again
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.keys().then((names) =>
+      Promise.all(names.map((name) => caches.delete(name)))
+    ).then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
-});
+// No fetch handler — browser will always go to the network
