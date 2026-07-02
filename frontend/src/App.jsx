@@ -286,9 +286,10 @@ function AQIPredictorChart({ lat, lng, t }) {
       )}
 
       {/* Chart */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 overflow-x-auto scrollbar-hide">
         <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{data.seasonal_context}</p>
-        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto bg-gray-950 rounded-lg border border-gray-800/60">
+        <div className="min-w-[600px]">
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto bg-gray-950 rounded-lg border border-gray-800/60">
           {bands.map((b) => {
             const bTop = Math.max(y(Math.min(b.max, yMax)), padT);
             const bBot = Math.min(y(b.min), padT + plotH);
@@ -345,6 +346,7 @@ function AQIPredictorChart({ lat, lng, t }) {
             <circle cx="148" cy="0" r="4" fill="#f59e0b" stroke="#fff" strokeWidth="1" /><text x="156" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Today</text>
           </g>
         </svg>
+        </div>
       </div>
 
       {/* 7-day forecast cards */}
@@ -472,10 +474,11 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
     const center = localLat && localLng ? [localLat, localLng] : [20.5937, 78.9629];
     const zoom = localLat && localLng ? 11 : 5;
     const map = L.map(mapRef.current).setView(center, zoom);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
     }).addTo(map);
     mapInstanceRef.current = map;
+    setTimeout(() => { if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize(); }, 400);
   }, [mapReady]);
 
   useEffect(() => {
@@ -1095,6 +1098,34 @@ export default function App() {
     })();
     // #endregion
 
+    const fallbackToIp = async () => {
+      try {
+        let res = await fetch("https://get.geojs.io/v1/ip/geo.json").catch(() => null);
+        if (!res || !res.ok) res = await fetch("https://ipapi.co/json/").catch(() => null);
+        if (!res || !res.ok) throw new Error("Fallback failed");
+        
+        const data = await res.json();
+        const la = parseFloat(data.latitude);
+        const lo = parseFloat(data.longitude);
+        if (!isNaN(la) && !isNaN(lo)) {
+          setUserLat(la); setUserLng(lo);
+          setLat(la.toFixed(5)); setLng(lo.toFixed(5));
+          const locName = await fetchLocality(la, lo);
+          setLocationDisplay(locName);
+          setError("Used approximate network location (GPS disabled).");
+          fetch(`${API}/nearest-station?lat=${la}&lng=${lo}`)
+            .then((r) => r.json())
+            .then(setNearestStation).catch(() => {});
+        } else {
+          throw new Error("Invalid format");
+        }
+      } catch (err) {
+        if (!window.isSecureContext && window.location.hostname !== "localhost") {
+          setError("Location blocked: mobile browsers require HTTPS for GPS on local networks. Enter coordinates manually or use Detect after allowing location.");
+        }
+      }
+    };
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -1122,11 +1153,11 @@ export default function App() {
             isSecureContext: window.isSecureContext,
           }, "D");
           // #endregion
-          if (!window.isSecureContext && window.location.hostname !== "localhost") {
-            setError("Location blocked: mobile browsers require HTTPS for GPS on local networks. Enter coordinates manually or use Detect after allowing location.");
-          }
+          fallbackToIp();
         }
       );
+    } else {
+      fallbackToIp();
     }
   }, []);
 
@@ -1158,7 +1189,33 @@ export default function App() {
   }
 
   function handleLocation() {
-    if (!navigator.geolocation) { setError("Geolocation not supported."); return; }
+    const fallbackToIp = async () => {
+      try {
+        let res = await fetch("https://get.geojs.io/v1/ip/geo.json").catch(() => null);
+        if (!res || !res.ok) res = await fetch("https://ipapi.co/json/").catch(() => null);
+        if (!res || !res.ok) throw new Error("Fallback failed");
+        
+        const data = await res.json();
+        const la = parseFloat(data.latitude);
+        const lo = parseFloat(data.longitude);
+        if (!isNaN(la) && !isNaN(lo)) {
+          setLat(la.toFixed(5)); setLng(lo.toFixed(5));
+          setUserLat(la); setUserLng(lo);
+          const locName = await fetchLocality(la, lo);
+          setLocationDisplay(locName);
+          setError("Used approximate network location.");
+        } else {
+          setError("Network location failed. Enter coordinates manually.");
+        }
+      } catch (err) {
+        setError("Location failed. Enter coordinates manually.");
+      }
+    };
+
+    if (!navigator.geolocation) { 
+      fallbackToIp(); 
+      return; 
+    }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const la = pos.coords.latitude.toFixed(5);
@@ -1168,8 +1225,9 @@ export default function App() {
         setUserLng(parseFloat(lo));
         const locName = await fetchLocality(pos.coords.latitude, pos.coords.longitude);
         setLocationDisplay(locName);
+        setError(null);
       },
-      (err) => setError(`Location denied (code ${err.code}). Allow it in browser settings.`)
+      (err) => fallbackToIp()
     );
   }
 

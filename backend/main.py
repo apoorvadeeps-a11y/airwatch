@@ -1060,8 +1060,8 @@ async def aqi_prediction(lat: float, lng: float):
     weather_analysis = " · ".join(weather_tags) if weather_tags else f"{cond} · {wind:.0f} km/h wind"
 
     # ── 5. Historical generation (30 days back) ───────────────────────────────
-    # Seed deterministically per location so result is consistent on reload
-    seed = int(abs(lat * 1000) + abs(lng * 1000)) ^ (month * 31 + 7)
+    # Seed deterministically per grid (rounded to 1 decimal, ~11km) so nearby devices see same graph shape
+    seed = int(abs(round(lat, 1) * 10) + abs(round(lng, 1) * 10)) ^ (month * 31 + 7)
     rng = random.Random(seed)
 
     # Traffic/industrial pattern per day-of-week
