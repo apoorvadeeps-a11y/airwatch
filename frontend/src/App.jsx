@@ -4,8 +4,10 @@ import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTrian
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
 
 function resolveApiBase() {
-  const custom = localStorage.getItem('airwatch_api_url');
-  if (custom) return custom.replace(/\/$/, "");
+  try {
+    const custom = localStorage.getItem('airwatch_api_url');
+    if (custom) return custom.replace(/\/$/, "");
+  } catch (e) {}
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, "");
   const { protocol, hostname } = window.location;
   return `${protocol}//${hostname}:8000`;
@@ -231,13 +233,14 @@ function AQIPredictorChart({ lat, lng, t }) {
     { min: 200, max: 300,  color: "rgba(255,0,0,0.04)",    label: "V.Unhealthy" },
     { min: 300, max: yMax, color: "rgba(143,63,151,0.05)", label: "Hazardous" },
   ];
-  const histPath = allPoints.slice(0, historicalCount).map((p, i) =>
-    `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.aqi).toFixed(1)}`).join(" ");
-  const predPoints = allPoints.slice(historicalCount - 1);
-  const predPath = predPoints.map((p, i) => {
-    const idx = historicalCount - 1 + i;
+  const histPath = historicalCount > 0 ? allPoints.slice(0, historicalCount).map((p, i) =>
+    `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.aqi).toFixed(1)}`).join(" ") : null;
+  const predStartIndex = Math.max(0, historicalCount - 1);
+  const predPoints = allPoints.slice(predStartIndex);
+  const predPath = predPoints.length > 1 ? predPoints.map((p, i) => {
+    const idx = predStartIndex + i;
     return `${i === 0 ? "M" : "L"}${x(idx).toFixed(1)},${y(p.aqi).toFixed(1)}`;
-  }).join(" ");
+  }).join(" ") : null;
   const predicted = data.predicted || [];
 
   return (
@@ -1000,7 +1003,9 @@ export default function App() {
   const [nearestStation, setNearestStation] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [customApiUrl, setCustomApiUrl] = useState(localStorage.getItem('airwatch_api_url') || "");
+  const [customApiUrl, setCustomApiUrl] = useState(() => {
+    try { return localStorage.getItem('airwatch_api_url') || ""; } catch { return ""; }
+  });
   const recognitionRef = useRef(null);
   const fileRef = useRef();
   
@@ -1008,11 +1013,12 @@ export default function App() {
   const activeApiUrl = customApiUrl || API;
 
   useEffect(() => {
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
+    try {
+      if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = "";
@@ -1034,6 +1040,8 @@ export default function App() {
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
+    } catch (e) {
+      console.warn("Speech recognition setup failed", e);
     }
   }, []);
 
@@ -1652,11 +1660,13 @@ export default function App() {
             />
             <button 
               onClick={() => {
-                if (customApiUrl) {
-                  localStorage.setItem('airwatch_api_url', customApiUrl);
-                } else {
-                  localStorage.removeItem('airwatch_api_url');
-                }
+                try {
+                  if (customApiUrl) {
+                    localStorage.setItem('airwatch_api_url', customApiUrl);
+                  } else {
+                    localStorage.removeItem('airwatch_api_url');
+                  }
+                } catch (e) {}
                 window.location.reload();
               }}
               className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded transition-colors"
