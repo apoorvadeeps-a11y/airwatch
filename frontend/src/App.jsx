@@ -10,7 +10,12 @@ function resolveApiBase() {
   } catch (e) {}
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, "");
   const { protocol, hostname } = window.location;
-  return `${protocol}//${hostname}:8000`;
+  // Only append :8000 in local development — on deployed sites, it makes no sense
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
+    return `${protocol}//${hostname}:8000`;
+  }
+  // For deployed sites without VITE_API_URL, use the Render backend URL
+  return "https://airwatch-backend.onrender.com";
 }
 
 const API = resolveApiBase();
@@ -18,7 +23,7 @@ const API = resolveApiBase();
 // #region agent log
 function agentLog(location, message, data, hypothesisId) {
   const payload = { sessionId: "d825a9", location, message, data, timestamp: Date.now(), hypothesisId };
-  fetch(`${window.location.protocol}//${window.location.hostname}:8000/debug-log`, {
+  fetch(`${API}/debug-log`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -1288,7 +1293,7 @@ export default function App() {
       // #region agent log
       agentLog("App.jsx:submit", "report submit start", { api: API, lat, lng }, "A");
       // #endregion
-      const res = await fetch(`${activeApiUrl}/report`, { method: "POST", body: fd });
+      const res = await fetch(`${API}/report`, { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       // #region agent log
