@@ -15,7 +15,7 @@ function resolveApiBase() {
     return `${protocol}//${hostname}:8000`;
   }
   // For deployed sites without VITE_API_URL, use the Render backend URL
-  return "https://airwatch-backend.onrender.com";
+  return "https://airwatch-yb3c.onrender.com";
 }
 
 const API = resolveApiBase();
