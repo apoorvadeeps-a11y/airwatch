@@ -1289,34 +1289,24 @@ export default function App() {
       fd.append("lat", lat);
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
-      if (photo) fd.append("photo", photo);
-      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      // #region agent log
-      agentLog("App.jsx:submit", "report submit start", { api: API, lat, lng }, "A");
-      // #endregion
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout to fail fast
       
       const res = await fetch(`${API}/report`, { 
         method: "POST", 
         body: fd,
         signal: controller.signal
-      }).finally(() => clearTimeout(timeoutId));
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      // #region agent log
-      agentLog("App.jsx:submit", "report submit success", { severity: data?.analysis?.severity }, "A");
-      // #endregion
       setResult(data);
     } catch (e) {
-      // #region agent log
-      agentLog("App.jsx:submit", "report submit failed", { api: API, error: String(e) }, "A");
-      // #endregion
       let errorMsg = e.message;
-      if (errorMsg === "Failed to fetch") {
-         errorMsg = `Failed to connect to ${API}. If on mobile, your browser might be blocking the request. Try setting a Custom API URL in settings.`;
+      if (errorMsg === "Failed to fetch" || errorMsg.includes("abort") || e.name === "AbortError") {
+         errorMsg = `Failed to connect to ${API}. Your connection might be unstable, or the server is spinning up. Try again.`;
       }
       setError(`Submit failed: ${errorMsg}`);
     } finally {
