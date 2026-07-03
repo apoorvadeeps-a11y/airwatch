@@ -1290,10 +1290,20 @@ export default function App() {
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
       if (photo) fd.append("photo", photo);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       // #region agent log
       agentLog("App.jsx:submit", "report submit start", { api: API, lat, lng }, "A");
       // #endregion
-      const res = await fetch(`${API}/report`, { method: "POST", body: fd });
+      
+      const res = await fetch(`${API}/report`, { 
+        method: "POST", 
+        body: fd,
+        signal: controller.signal
+      }).finally(() => clearTimeout(timeoutId));
+      
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       // #region agent log
