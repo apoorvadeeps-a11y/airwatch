@@ -1291,7 +1291,7 @@ export default function App() {
       fd.append("location", locationDisplay);
       if (photo) fd.append("photo", photo);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout to fail fast
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for image upload + AI
       
       const res = await fetch(`${API}/report`, { 
         method: "POST", 
