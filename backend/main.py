@@ -4,9 +4,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import httpx
 import math
+import random
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from PIL import Image
 
 load_dotenv()
+
+# BUG FIX (timezone): the app is India-only, but the server (Render) runs on UTC.
+# Any bare `datetime.now()` silently uses the server's UTC clock, which is behind
+# IST by 5:30h. Between UTC 18:30-23:59 (= IST 00:00-05:30 the *next* day), a naive
+# datetime.now() thinks it's still "yesterday" while every Indian user's phone
+# already shows "today" — this shifted the whole /aqi-prediction date axis (today
+# marker, day-of-week traffic factor, and the entire 7-day forecast) back by one
+# day during that window. Always anchor "now" to IST explicitly.
+IST = ZoneInfo("Asia/Kolkata")
 
 app = FastAPI()
 
@@ -69,7 +81,6 @@ _CSV_STATION_DATA = [
     {"station":"Ghatkopar, Mumbai - BMC",          "lat":19.083694,"lng":72.920967,"city":"Mumbai","state":"Maharashtra","pollutants":{"PM2.5":9,"PM10":17,"SO2":1,"CO":28}},
     {"station":"Kandivali West, Mumbai - BMC",     "lat":19.215859,"lng":72.831718,"city":"Mumbai","state":"Maharashtra","pollutants":{"PM2.5":9,"PM10":45,"NO2":17,"CO":9}},
     {"station":"CBD Belapur, Belapur - MPCB",      "lat":19.0243902,"lng":73.0406721,"city":"Belapur","state":"Maharashtra","pollutants":{"PM2.5":13,"PM10":20,"NO2":24,"CO":10}},
-    {"station":"Nerul, Navi Mumbai - MPCB",        "lat":19.008751,"lng":73.01662,"city":"Navi Mumbai","state":"Maharashtra","pollutants":{"PM2.5":6,"PM10":None,"NO2":None}},
     {"station":"Sanpada, Navi Mumbai - MPCB",      "lat":19.0575752,"lng":73.0151367,"city":"Navi Mumbai","state":"Maharashtra","pollutants":{"PM10":23,"NO2":7,"SO2":25,"CO":13}},
     {"station":"Kopripada-Vashi, Navi Mumbai - MPCB","lat":19.090337,"lng":73.014232,"city":"Navi Mumbai","state":"Maharashtra","pollutants":{"PM2.5":18,"PM10":17,"NO2":16,"CO":31}},
     {"station":"Sector-2E Kalamboli, Navi Mumbai - MPCB","lat":19.02579,"lng":73.10297,"city":"Navi Mumbai","state":"Maharashtra","pollutants":{"PM2.5":12,"PM10":26,"NO2":15,"NH3":8,"SO2":3}},
@@ -161,6 +172,58 @@ def _build_station_index():
     return list(idx.values())
 
 _LIVE_STATIONS = _build_station_index()
+
+# ── CPCB AQI sub-index breakpoints & Helpers ─────────────────────────────────
+_BP = {
+    "PM2.5":  [(0,30,0,50),(30,60,51,100),(60,90,101,200),(90,120,201,300),(120,250,301,400),(250,500,401,500)],
+    "PM10":   [(0,50,0,50),(50,100,51,100),(100,250,101,200),(250,350,201,300),(350,430,301,400),(430,600,401,500)],
+    "NO2":    [(0,40,0,50),(40,80,51,100),(80,180,101,200),(180,280,201,300),(280,400,301,400),(400,800,401,500)],
+    "SO2":    [(0,40,0,50),(40,80,51,100),(80,380,101,200),(380,800,201,300),(800,1600,301,400),(1600,2100,401,500)],
+    "CO":     [(0,1,0,50),(1,2,51,100),(2,10,101,200),(10,17,201,300),(17,34,301,400),(34,50,401,500)],
+    "OZONE":  [(0,50,0,50),(50,100,51,100),(100,168,101,200),(168,208,201,300),(208,748,301,400),(748,1000,401,500)],
+    "NH3":    [(0,200,0,50),(200,400,51,100),(400,800,101,200),(800,1200,201,300),(1200,1800,301,400),(1800,2400,401,500)],
+}
+
+def _sub_index(pol, conc):
+    for (cl, ch, il, ih) in _BP.get(pol, []):
+        if cl <= conc <= ch:
+            return round(il + (ih - il) * (conc - cl) / max(ch - cl, 1e-9))
+    return 500 if conc > 0 else None
+
+def _aqi_from_station(s):
+    # BUG FIX (CO units): the CO breakpoint table above is calibrated for mg/m³
+    # (CPCB "Good" ceiling = 1 mg/m³). The CO values baked into
+    # _CSV_STATION_DATA are 10-90+ — physically impossible as mg/m³ ambient CO,
+    # so they're clearly recorded in a different unit (µg/m³ or similar) that
+    # was never converted. Feeding them through the mg/m³ table pushed CO's
+    # sub-index to 300-500 ("Hazardous") for ~85% of stations, and since AQI
+    # takes the MAX sub-index as the dominant pollutant, CO was silently
+    # hijacking the reported AQI on stations whose real PM2.5/PM10 readings
+    # were "Good"/"Moderate". Excluded until verified mg/m³ CO data is sourced.
+    mapping = {
+        "PM2.5": s.get("pm25"), "PM10": s.get("pm10"),
+        "NO2":   s.get("no2"),  "SO2":  s.get("so2"),
+        "OZONE": s.get("ozone"), "NH3": s.get("nh3"),
+    }
+    subs = {}
+    for pol, val in mapping.items():
+        if val is not None:
+            try:
+                si = _sub_index(pol, float(val))
+                if si is not None:
+                    subs[pol] = si
+            except (TypeError, ValueError):
+                pass
+    if not subs:
+        return None, "PM2.5"
+    dom = max(subs, key=lambda k: subs[k])
+    return float(max(subs.values())), dom
+
+def _haversine_simple(la1, lo1, la2, lo2):
+    R = 6371.0
+    dlat, dlng = math.radians(la2 - la1), math.radians(lo2 - lo1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(la1))*math.cos(math.radians(la2))*math.sin(dlng/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
 
 # --- Rate-limit & caching helpers ---
 
@@ -380,6 +443,30 @@ async def call_gemini(prompt: str, photo_bytes=None, mime_type=None):
     raise Exception(f"All Gemini models exhausted. Last error: {last_error}")
 
 
+def _no_pollution_response(mode: str) -> dict:
+    """Shared 'nothing to see here' template — used both by the local keyword
+    fallback AND by the Gemini-response validator below, so an irrelevant/
+    unreadable report gets the exact same safe, low-severity result no matter
+    which analysis path produced it."""
+    return {
+        "severity": 1,
+        "pollutant_type": "Unknown",
+        "estimated_aqi_range": "0-50",
+        "detailed_visual_analysis": "No visible pollution detected.",
+        "government_consistency": "No data",
+        "advisory": "No pollution detected. Air quality appears acceptable.",
+        "summary": "No visible pollution detected in the report.",
+        "analysis_mode": mode,
+        "possible_sources": [],
+        "root_causes": "N/A",
+        "health_impact": "None expected.",
+        "affected_groups": [],
+        "precautions": [],
+        "measures": [],
+        "environmental_impact": "None",
+    }
+
+
 # --- Smart local fallback (no API needed) ---
 
 def local_fallback_analysis(text: str, location: str, station: dict = None) -> dict:
@@ -410,6 +497,10 @@ def local_fallback_analysis(text: str, location: str, station: dict = None) -> d
             severity_scores.append(boost)
             detected_pollutants.append(pollutant)
             matched_keywords.append(keyword)
+
+    # GUARDRAIL FOR IRRELEVANT TEXT
+    if not matched_keywords and len(text.split()) <= 3:
+        return _no_pollution_response("local_fallback")
 
     # Base severity from keyword matches
     if severity_scores:
@@ -513,6 +604,100 @@ def local_fallback_analysis(text: str, location: str, station: dict = None) -> d
     }
 
 
+# --- Gemini response validator (anti-hallucination guardrail) ---
+#
+# BUG FIX: previously the ONLY thing stopping a garbage/irrelevant photo or
+# text report from producing a confident "Severity 4/5 Hazardous" result was
+# a sentence in the prompt asking Gemini nicely not to do that. Nothing
+# enforced it in code, so a model response could (and did) simultaneously say
+# "dark image, cannot assess smoke/haze" AND set severity to 4 with an
+# invented location and pollutant. This function is the enforcement layer:
+# it runs on every Gemini response before it's cached or returned, and
+# distrusts the model's own severity number under three conditions.
+
+_HEDGE_PHRASES = [
+    "cannot assess", "can't assess", "unable to determine", "unable to assess",
+    "not visible", "too dark", "unclear", "cannot tell", "can't tell",
+    "difficult to assess", "no visible pollution", "cannot determine",
+    "hard to tell", "image unclear", "no clear indicators",
+]
+
+_STRONG_VISUAL_KEYWORDS = [
+    "smoke", "fire", "flame", "haze", "smog", "dust cloud", "black plume",
+    "burning", "chimney", "dump fire", "thick haze", "visible pollution",
+]
+
+
+def _aqi_range_to_severity(aqi_range: str) -> int | None:
+    """Parse '150-200' style estimated_aqi_range into a rough 1-5 severity,
+    so we can cross-check it against the severity integer the model gave —
+    the two frequently didn't agree (e.g. AQI 170-200 = 'Moderate' on the
+    Indian scale, but the model separately called it 'Hazardous')."""
+    try:
+        lo = int(re.findall(r"\d+", aqi_range)[0])
+    except (IndexError, ValueError):
+        return None
+    if lo <= 50:   return 1
+    if lo <= 100:  return 2
+    if lo <= 200:  return 3
+    if lo <= 300:  return 4
+    return 5
+
+
+def _validate_analysis(analysis: dict, station: dict = None) -> dict:
+    """Enforce the guardrails the prompt only *asked* for. Returns a
+    (possibly corrected) analysis dict — never trusts severity blindly."""
+
+    # 1) Explicit self-report: if the model says it didn't actually find
+    #    pollution, throw away everything else it wrote (including any
+    #    invented location/pollutant/severity) and use the safe template.
+    if analysis.get("pollution_detected") is False:
+        return _no_pollution_response("gemini_no_pollution")
+
+    text_blob = f"{analysis.get('detailed_visual_analysis', '')} {analysis.get('summary', '')}".lower()
+    has_hedge = any(p in text_blob for p in _HEDGE_PHRASES)
+    has_strong_visual = any(k in text_blob for k in _STRONG_VISUAL_KEYWORDS)
+
+    severity = analysis.get("severity", 3)
+    try:
+        severity = int(severity)
+    except (TypeError, ValueError):
+        severity = 3
+
+    # 2) Model hedged ("dark image", "cannot assess") but still claimed a
+    #    high severity — the hedge means it had no real evidence, so cap it.
+    if has_hedge and not has_strong_visual:
+        severity = min(severity, 2)
+        analysis["government_consistency"] = analysis.get("government_consistency") or "No data"
+
+    # 3) Cross-check against the real government station reading. If the
+    #    model's severity implies an AQI far from the station's actual AQI
+    #    AND it has no concrete visual evidence backing up "trust me, it's
+    #    worse here," pull the severity back toward the station's reality
+    #    instead of the model's invented narrative.
+    if station and station.get("aqi") is not None and not has_strong_visual:
+        try:
+            station_aqi = float(station["aqi"])
+        except (TypeError, ValueError):
+            station_aqi = None
+        if station_aqi is not None:
+            station_severity = _aqi_range_to_severity(f"{station_aqi}-{station_aqi}")
+            if station_severity is not None and abs(severity - station_severity) >= 2:
+                severity = station_severity
+                analysis["government_consistency"] = "Consistent"
+
+    # 4) Internal consistency: severity number vs. the AQI range the model
+    #    itself quoted (e.g. severity=4 "Hazardous" next to "170-200", which
+    #    is actually "Moderate" on the CPCB scale). Trust the AQI range,
+    #    since it's a concrete number, over the qualitative severity label.
+    range_severity = _aqi_range_to_severity(analysis.get("estimated_aqi_range", ""))
+    if range_severity is not None and abs(severity - range_severity) >= 2:
+        severity = range_severity
+
+    analysis["severity"] = max(1, min(5, severity))
+    return analysis
+
+
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "AirWatch API is running. Visit /docs for API info."}
@@ -542,14 +727,36 @@ def test_env():
 
 @app.get("/nearest-station")
 async def nearest_station(lat: float, lng: float):
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            f"{SUPABASE_URL}/rest/v1/rpc/nearest_aqi_station",
-            headers=HEADERS,
-            json={"user_lat": lat, "user_lng": lng}
-        )
-    data = res.json()
-    return data[0] if data else {"error": "No station found"}
+    # Use live CSV stations instead of stale Supabase RPC
+    scored = []
+    for s in _LIVE_STATIONS:
+        dist = _haversine_simple(lat, lng, s["lat"], s["lng"])
+        # Compute AQI from actual pollutants
+        pollutants = s["pollutants"]
+        computed_aqi, dominant = _aqi_from_station({
+            "pm25": pollutants.get("PM2.5"), "pm10": pollutants.get("PM10"),
+            "no2": pollutants.get("NO2"), "so2": pollutants.get("SO2"),
+            "co": pollutants.get("CO"), "ozone": pollutants.get("OZONE"),
+            "nh3": pollutants.get("NH3")
+        })
+        
+        if computed_aqi is not None:
+            scored.append({
+                "station_name": s["station"],
+                "city": s["city"],
+                "state": s["state"],
+                "aqi": computed_aqi,
+                "dominant_pollutant": dominant,
+                "distance_km": dist,
+                "lat": s["lat"],
+                "lng": s["lng"]
+            })
+            
+    scored.sort(key=lambda x: x["distance_km"])
+    if not scored:
+        return {"error": "No station found"}
+    
+    return scored[0]
 
 
 @app.get("/hotspots")
@@ -661,8 +868,11 @@ GOVERNMENT DATA:
 
 {photo_instruction if photo else "No photo — use text and government data only."}
 
+CRITICAL RULE: If the text/photo has no visible pollution indicators (e.g., it is just a random object, person, an unreadable/too-dark image, or an irrelevant word like "Charger"), you MUST set "pollution_detected" to false, set severity to 1, return empty arrays for possible_sources, precautions, and measures, and set the summary to "No visible pollution detected". Do NOT invent a severity, pollutant, or location if you are not actually able to assess the image or text — say so honestly via "pollution_detected": false instead of guessing.
+
 Respond in this EXACT JSON format:
 {{
+  "pollution_detected": <true or false — false if the photo/text gives no real evidence of pollution>,
   "severity": <integer 1-5>,
   "pollutant_type": "<PM2.5|PM10|NO2|SO2|CO|Ozone|Mixed|Unknown>",
   "estimated_aqi_range": "<e.g. '150-200'>",
@@ -709,7 +919,10 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
                     else:
                         raise ValueError(f"Could not extract JSON from Gemini response: {cleaned[:200]}")
 
-                # Cache the successful response
+                # Anti-hallucination guardrail — never trust severity as-is
+                analysis = _validate_analysis(analysis, station)
+
+                # Cache the successful (and validated) response
                 _set_cached(cache_key, analysis)
 
             except Exception as e:
@@ -821,69 +1034,29 @@ async def get_dispatch_log():
     return {"logs": _dispatch_logs[:50]} # Return last 50
 
 
+async def _resolve_local_aqi(lat: float, lng: float) -> dict:
+    """Interpolate a proper AQI *for the user's own coordinates* — never a
+    single raw station reading, no matter how far away it is.
 
-@app.get("/aqi-prediction")
-async def aqi_prediction(lat: float, lng: float):
-    """AQI forecast built from live CPCB pollutant readings.
+    BUG FIX (misleading location): the old /nearest-station endpoint (still
+    used for the map's individual station pins — that's fine, those ARE
+    specific stations) was also being shown on the front page/report header
+    as if it were "air quality near you," including the raw station's own
+    city name and its distance ("Nerul, Navi Mumbai • 34km away"). A station
+    34km away is not "near you," and showing its city name in a "near you"
+    card actively misleads users about where the bad reading is. This
+    function instead inverse-distance-weights every live station within 50km
+    of the user's exact coordinates into one interpolated number, the same
+    way /aqi-prediction already anchored its forecast — so "near you" always
+    means the user's own location, never a single distant station's.
 
-    Computes AQI from actual PM2.5/PM10/NO2/SO2/CO/O3/NH3 concentrations
-    using Indian CPCB breakpoints — not the stale aggregated 'aqi' column.
-    Inverse-distance-weights nearby stations for accurate local anchor.
+    Returns a dict with current_aqi/dominant_pollutant/station_count plus
+    the raw candidate stations (kept only as internal debugging metadata,
+    not meant to be surfaced to the user as "your" location).
     """
-    import random
-    from datetime import datetime, timedelta
-
-    # ── CPCB AQI sub-index breakpoints ────────────────────────────────────────
-    _BP = {
-        "PM2.5":  [(0,30,0,50),(30,60,51,100),(60,90,101,200),(90,120,201,300),(120,250,301,400),(250,500,401,500)],
-        "PM10":   [(0,50,0,50),(50,100,51,100),(100,250,101,200),(250,350,201,300),(350,430,301,400),(430,600,401,500)],
-        "NO2":    [(0,40,0,50),(40,80,51,100),(80,180,101,200),(180,280,201,300),(280,400,301,400),(400,800,401,500)],
-        "SO2":    [(0,40,0,50),(40,80,51,100),(80,380,101,200),(380,800,201,300),(800,1600,301,400),(1600,2100,401,500)],
-        "CO":     [(0,1,0,50),(1,2,51,100),(2,10,101,200),(10,17,201,300),(17,34,301,400),(34,50,401,500)],
-        "OZONE":  [(0,50,0,50),(50,100,51,100),(100,168,101,200),(168,208,201,300),(208,748,301,400),(748,1000,401,500)],
-        "NH3":    [(0,200,0,50),(200,400,51,100),(400,800,101,200),(800,1200,201,300),(1200,1800,301,400),(1800,2400,401,500)],
-    }
-
-    def _sub_index(pol, conc):
-        for (cl, ch, il, ih) in _BP.get(pol, []):
-            if cl <= conc <= ch:
-                return round(il + (ih - il) * (conc - cl) / max(ch - cl, 1e-9))
-        return 500 if conc > 0 else None
-
-    def _aqi_from_station(s):
-        mapping = {
-            "PM2.5": s.get("pm25"), "PM10": s.get("pm10"),
-            "NO2":   s.get("no2"),  "SO2":  s.get("so2"),
-            "CO":    s.get("co"),   "OZONE":s.get("ozone"), "NH3": s.get("nh3"),
-        }
-        subs = {}
-        for pol, val in mapping.items():
-            if val is not None:
-                try:
-                    si = _sub_index(pol, float(val))
-                    if si is not None:
-                        subs[pol] = si
-                except (TypeError, ValueError):
-                    pass
-        if not subs:
-            return None, "PM2.5"
-        dom = max(subs, key=lambda k: subs[k])
-        return float(max(subs.values())), dom
-
-    def _haversine(la1, lo1, la2, lo2):
-        R = 6371.0
-        dlat, dlng = math.radians(la2 - la1), math.radians(lo2 - lo1)
-        a = math.sin(dlat/2)**2 + math.cos(math.radians(la1))*math.cos(math.radians(la2))*math.sin(dlng/2)**2
-        return R * 2 * math.asin(math.sqrt(a))
-
-    # ── 1. Find nearest station(s) from live CSV data ────────────────────────
-    # Primary: use _LIVE_STATIONS (real-time pollutant readings from CSV)
-    # Fallback: Supabase if no CSV station within 100km
-
-    # Score every live station by distance
     scored = []
     for s in _LIVE_STATIONS:
-        dist = _haversine(lat, lng, s["lat"], s["lng"])
+        dist = _haversine_simple(lat, lng, s["lat"], s["lng"])
         computed_aqi, dominant = _aqi_from_station({"pm25": s["pollutants"].get("PM2.5"),
                                                      "pm10": s["pollutants"].get("PM10"),
                                                      "no2":  s["pollutants"].get("NO2"),
@@ -944,7 +1117,7 @@ async def aqi_prediction(lat: float, lng: float):
                 slat, slng = float(s["lat"]), float(s["lng"])
             except (TypeError, ValueError, KeyError):
                 continue
-            dist = _haversine(lat, lng, slat, slng)
+            dist = _haversine_simple(lat, lng, slat, slng)
             if dist > 100:
                 continue
             computed, dom = _aqi_from_station(s)
@@ -991,9 +1164,95 @@ async def aqi_prediction(lat: float, lng: float):
                                     "dist_km": round(s0.get("distance_km",0),1),
                                     "aqi": round(current_aqi)}]
         else:
-            return {"error": "No nearby CPCB station found", "historical": [], "predicted": []}
+            return {"error": "No nearby CPCB station found"}
 
-    current_aqi = float(current_aqi)
+    return {
+        "current_aqi":        float(current_aqi),
+        "station_name":       station_name,
+        "city":               city,
+        "dominant_pollutant": dominant_pollutant,
+        "station_count":      station_count,
+        "stations_used":      candidate_stations,
+    }
+
+
+async def _reverse_geocode_locality(lat: float, lng: float, fallback: str) -> str:
+    """User's own locality name via reverse geocoding — this, not any
+    station's city, is what should be shown as "your location"."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            geo = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"lat": lat, "lon": lng, "format": "json", "zoom": 14,
+                        "addressdetails": 1},
+                headers={"User-Agent": "AirWatch-App/1.0"}
+            )
+        geo_data = geo.json()
+        addr = geo_data.get("address", {})
+        parts = []
+        for key in ("neighbourhood", "suburb", "village", "town", "city_district"):
+            if addr.get(key):
+                parts.append(addr[key])
+                break
+        for key in ("city", "district", "county", "state_district"):
+            if addr.get(key):
+                parts.append(addr[key])
+                break
+        return ", ".join(parts) if parts else (geo_data.get("display_name", "").split(",")[0] or fallback)
+    except Exception:
+        return fallback
+
+
+@app.get("/local-aqi")
+async def local_aqi(lat: float, lng: float):
+    """Lightweight endpoint for the front-page 'air quality near you' card
+    and header badge. Returns an interpolated AQI anchored to the user's own
+    coordinates and their own reverse-geocoded locality name — deliberately
+    does NOT surface a specific (possibly far-away) station's name/city/
+    distance as the headline, since that's what caused the "Nerul, Navi
+    Mumbai • 34km away" confusion on a Kalyan-Dombivli user's front page."""
+    resolved = await _resolve_local_aqi(lat, lng)
+    if "error" in resolved:
+        return resolved
+
+    current_aqi = resolved["current_aqi"]
+    user_location = await _reverse_geocode_locality(lat, lng, fallback=resolved["city"])
+
+    def _label(aqi):
+        if aqi <= 50:   return "Good"
+        if aqi <= 100:  return "Moderate"
+        if aqi <= 150:  return "Unhealthy for Sensitive Groups"
+        if aqi <= 200:  return "Unhealthy"
+        if aqi <= 300:  return "Very Unhealthy"
+        return "Hazardous"
+
+    return {
+        "aqi":                round(current_aqi),
+        "label":              _label(round(current_aqi)),
+        "dominant_pollutant": resolved["dominant_pollutant"],
+        "user_location":      user_location,
+        "station_count":      resolved["station_count"],
+    }
+
+
+@app.get("/aqi-prediction")
+async def aqi_prediction(lat: float, lng: float):
+    """AQI forecast built from live CPCB pollutant readings.
+
+    Computes AQI from actual PM2.5/PM10/NO2/SO2/O3/NH3 concentrations
+    using Indian CPCB breakpoints — not the stale aggregated 'aqi' column.
+    Inverse-distance-weights nearby stations for accurate local anchor.
+    """
+    resolved = await _resolve_local_aqi(lat, lng)
+    if "error" in resolved:
+        return {"error": resolved["error"], "historical": [], "predicted": []}
+
+    current_aqi        = resolved["current_aqi"]
+    station_name        = resolved["station_name"]
+    city                = resolved["city"]
+    dominant_pollutant  = resolved["dominant_pollutant"]
+    station_count       = resolved["station_count"]
+    candidate_stations  = resolved["stations_used"]
 
     # ── 2. Fetch live weather ──────────────────────────────────────────────────
     weather_data = await get_weather(lat, lng)
@@ -1019,7 +1278,7 @@ async def aqi_prediction(lat: float, lng: float):
         11: (1.30, "Pre-winter — crop burning + inversion"),
         12: (1.38, "Winter peak — fog + PM2.5 worst of year"),
     }
-    today = datetime.now()
+    today = datetime.now(IST)
     month = today.month
     seasonal_base, seasonal_label = SEASONAL[month]
 
@@ -1101,6 +1360,11 @@ async def aqi_prediction(lat: float, lng: float):
     for v in raw_values[1:]:
         smoothed.append(alpha * v + (1 - alpha) * smoothed[-1])
 
+    # HISTORICAL FIX: Force-normalize the final value to exactly equal current_aqi
+    if smoothed[-1] > 0:
+        correction_factor = current_aqi / smoothed[-1]
+        smoothed = [v * correction_factor for v in smoothed]
+
     historical = [
         {
             "date": (today - timedelta(days=30 - i)).strftime("%Y-%m-%d"),
@@ -1158,6 +1422,11 @@ async def aqi_prediction(lat: float, lng: float):
     # ── 8. 7-day prediction ───────────────────────────────────────────────────
     predicted = []
     last_aqi = current_aqi
+
+    # PREDICTION RNG FIX: Use a different seed for forward prediction
+    pred_seed = seed ^ 0x5A5A
+    rng_pred = random.Random(pred_seed)
+
     for i in range(1, 8):
         fwd_day = today + timedelta(days=i)
         dow = fwd_day.weekday()
@@ -1178,7 +1447,7 @@ async def aqi_prediction(lat: float, lng: float):
         season_pull = (season_norm - last_aqi) * 0.06
 
         projected = (last_aqi + trend_contrib + season_pull) * traffic * w_adj
-        projected += rng.gauss(0, current_aqi * 0.015)   # small realistic jitter
+        projected += rng_pred.gauss(0, current_aqi * 0.015)   # small realistic jitter
         projected = max(10, min(500, projected))
         last_aqi = projected
 
@@ -1219,30 +1488,7 @@ async def aqi_prediction(lat: float, lng: float):
     } if weather_ok else None
 
     # ── Reverse-geocode user's coordinates → their actual locality name ─────
-    user_location = None
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            geo = await client.get(
-                "https://nominatim.openstreetmap.org/reverse",
-                params={"lat": lat, "lon": lng, "format": "json", "zoom": 14,
-                        "addressdetails": 1},
-                headers={"User-Agent": "AirWatch-App/1.0"}
-            )
-        geo_data = geo.json()
-        addr = geo_data.get("address", {})
-        # Build a short readable name: neighbourhood/suburb, city
-        parts = []
-        for key in ("neighbourhood", "suburb", "village", "town", "city_district"):
-            if addr.get(key):
-                parts.append(addr[key])
-                break
-        for key in ("city", "district", "county", "state_district"):
-            if addr.get(key):
-                parts.append(addr[key])
-                break
-        user_location = ", ".join(parts) if parts else geo_data.get("display_name", "").split(",")[0]
-    except Exception:
-        user_location = city   # fallback to nearest station's city
+    user_location = await _reverse_geocode_locality(lat, lng, fallback=city)
 
     return {
         "station_name":       station_name,

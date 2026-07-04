@@ -7,7 +7,7 @@ function resolveApiBase() {
   try {
     const custom = localStorage.getItem('airwatch_api_url');
     if (custom) return custom.replace(/\/$/, "");
-  } catch (e) {}
+  } catch (e) { }
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/$/, "");
   const { protocol, hostname } = window.location;
   // Only append :8000 in local development — on deployed sites, it makes no sense
@@ -27,7 +27,7 @@ function agentLog(location, message, data, hypothesisId) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }).catch(() => {});
+  }).catch(() => { });
 }
 // #endregion
 
@@ -153,7 +153,7 @@ const TRANSLATIONS = {
     municipalDashboard: "পৌরসভা প্রেরণ ড্যাশবোর্ড", activeHotspots: "সক্রিয় গুরুতর হটস্পট",
     deployCannon: "জল-কুয়াশা কামান মোতায়েন করুন", dispatchCrew: "পরিচ্ছন্নতা কর্মী প্রেরণ করুন",
     recentDispatches: "সাম্প্রতিক প্রেরণ", noHotspots: "বর্তমানে কোনও গুরুতর হটস্পট নেই।",
-    lowConnTitle: "ইন্টারনেট নেই?", lowConnDesc: "হোয়াটসঅ্যাপের মাধ্যমে রিপোর্ট করুন: '+91-98765-43210' এ 'SMOKE [অবস্থান]' পাঠান",
+    lowConnTitle: "ইணையம் নেই?", lowConnDesc: "হোয়াটসঅ্যাপের মাধ্যমে রিপোর্ট করুন: '+91-98765-43210' এ 'SMOKE [অবস্থান]' পাঠান",
     mapTabShowAqi: "আমরা আপনার ১৫ কিলোমিটারের মধ্যে একিউআই ডেটা এবং নাগরিক রিপোর্ট দেখাব",
     mapTabYourLoc: "আপনার অবস্থান"
   }
@@ -232,10 +232,10 @@ function AQIPredictorChart({ lat, lng, t }) {
   const x = (i) => padL + (i / (allPoints.length - 1)) * plotW;
   const y = (aqi) => padT + plotH - (aqi / yMax) * plotH;
   const bands = [
-    { min: 0,   max: 50,   color: "rgba(0,228,0,0.05)",    label: "Good" },
-    { min: 50,  max: 100,  color: "rgba(255,255,0,0.04)",  label: "Moderate" },
-    { min: 100, max: 200,  color: "rgba(255,126,0,0.04)",  label: "Unhealthy" },
-    { min: 200, max: 300,  color: "rgba(255,0,0,0.04)",    label: "V.Unhealthy" },
+    { min: 0, max: 50, color: "rgba(0,228,0,0.05)", label: "Good" },
+    { min: 50, max: 100, color: "rgba(255,255,0,0.04)", label: "Moderate" },
+    { min: 100, max: 200, color: "rgba(255,126,0,0.04)", label: "Unhealthy" },
+    { min: 200, max: 300, color: "rgba(255,0,0,0.04)", label: "V.Unhealthy" },
     { min: 300, max: yMax, color: "rgba(143,63,151,0.05)", label: "Hazardous" },
   ];
   const histPath = historicalCount > 0 ? allPoints.slice(0, historicalCount).map((p, i) =>
@@ -289,7 +289,7 @@ function AQIPredictorChart({ lat, lng, t }) {
         <div className="bg-red-950/30 border border-red-600/40 rounded-xl px-4 py-2.5 flex items-center gap-3">
           <AlertTriangle className="text-red-400 w-4 h-4 flex-shrink-0" />
           <p className="text-xs"><span className="text-red-400 font-bold">{data.spike_alerts[0].title}: </span>
-          <span className="text-red-300/80">{data.spike_alerts[0].reason} — {data.spike_alerts[0].impact}</span></p>
+            <span className="text-red-300/80">{data.spike_alerts[0].reason} — {data.spike_alerts[0].impact}</span></p>
         </div>
       )}
 
@@ -298,62 +298,62 @@ function AQIPredictorChart({ lat, lng, t }) {
         <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{data.seasonal_context}</p>
         <div className="min-w-[600px]">
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto bg-gray-950 rounded-lg border border-gray-800/60">
-          {bands.map((b) => {
-            const bTop = Math.max(y(Math.min(b.max, yMax)), padT);
-            const bBot = Math.min(y(b.min), padT + plotH);
-            if (bBot <= bTop) return null;
-            return (<g key={b.label}>
-              <rect x={padL} y={bTop} width={plotW} height={bBot - bTop} fill={b.color} />
-              <text x={padL + 5} y={bTop + 11} fill="rgba(255,255,255,0.18)" fontSize="9" fontFamily="sans-serif">{b.label}</text>
-            </g>);
-          })}
-          {Array.from({ length: Math.floor(yMax / 50) + 1 }, (_, i) => i * 50).map((val) => (
-            <g key={val}>
-              <line x1={padL} y1={y(val)} x2={padL + plotW} y2={y(val)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-              <text x={padL - 6} y={y(val) + 3} fill="#6b7280" fontSize="9" textAnchor="end" fontFamily="sans-serif">{val}</text>
-            </g>
-          ))}
-          {historicalCount < allPoints.length && (
-            <rect x={x(historicalCount - 1)} y={padT} width={x(allPoints.length - 1) - x(historicalCount - 1)} height={plotH} fill="rgba(59,130,246,0.04)" />
-          )}
-          <path d={histPath} fill="none" stroke="rgba(16,185,129,0.25)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={histPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          {predPath && <>
-            <path d={predPath} fill="none" stroke="rgba(59,130,246,0.18)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
-          </>}
-          {allPoints.map((p, i) => {
-            const isPred = i >= historicalCount;
-            const isCur  = p.type === "current";
-            return (
-              <g key={i} onMouseEnter={() => setHoveredPoint({ ...p, idx: i })} onMouseLeave={() => setHoveredPoint(null)} style={{ cursor: "pointer" }}>
-                {isCur && <circle cx={x(i)} cy={y(p.aqi)} r={7} fill="rgba(245,158,11,0.25)" />}
-                <circle cx={x(i)} cy={y(p.aqi)} r={isCur ? 5 : 3.5}
-                  fill={isCur ? "#f59e0b" : isPred ? "#3b82f6" : "#10b981"}
-                  stroke={isCur ? "#fff" : "#111827"} strokeWidth={1.5} />
-                <circle cx={x(i)} cy={y(p.aqi)} r={12} fill="transparent" />
+            {bands.map((b) => {
+              const bTop = Math.max(y(Math.min(b.max, yMax)), padT);
+              const bBot = Math.min(y(b.min), padT + plotH);
+              if (bBot <= bTop) return null;
+              return (<g key={b.label}>
+                <rect x={padL} y={bTop} width={plotW} height={bBot - bTop} fill={b.color} />
+                <text x={padL + 5} y={bTop + 11} fill="rgba(255,255,255,0.18)" fontSize="9" fontFamily="sans-serif">{b.label}</text>
+              </g>);
+            })}
+            {Array.from({ length: Math.floor(yMax / 50) + 1 }, (_, i) => i * 50).map((val) => (
+              <g key={val}>
+                <line x1={padL} y1={y(val)} x2={padL + plotW} y2={y(val)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
+                <text x={padL - 6} y={y(val) + 3} fill="#6b7280" fontSize="9" textAnchor="end" fontFamily="sans-serif">{val}</text>
               </g>
-            );
-          })}
-          {hoveredPoint && (
-            <g>
-              <rect x={Math.min(x(hoveredPoint.idx) - 52, chartW - padR - 110)} y={y(hoveredPoint.aqi) - 42} width="104" height="32" rx="5" fill="#1f2937" stroke="#374151" strokeWidth="1" />
-              <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 26} textAnchor="middle" fill="white" fontSize="10" fontFamily="sans-serif" fontWeight="700">AQI {hoveredPoint.aqi} · {hoveredPoint.date?.slice(5)}</text>
-              <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 14} textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="sans-serif">
-                {hoveredPoint.type === "predicted" ? `Predicted · ${hoveredPoint.confidence}% conf.` : hoveredPoint.type === "current" ? "Today (live)" : "Historical"}
-              </text>
+            ))}
+            {historicalCount < allPoints.length && (
+              <rect x={x(historicalCount - 1)} y={padT} width={x(allPoints.length - 1) - x(historicalCount - 1)} height={plotH} fill="rgba(59,130,246,0.04)" />
+            )}
+            <path d={histPath} fill="none" stroke="rgba(16,185,129,0.25)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={histPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            {predPath && <>
+              <path d={predPath} fill="none" stroke="rgba(59,130,246,0.18)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={predPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
+            </>}
+            {allPoints.map((p, i) => {
+              const isPred = i >= historicalCount;
+              const isCur = p.type === "current";
+              return (
+                <g key={i} onMouseEnter={() => setHoveredPoint({ ...p, idx: i })} onMouseLeave={() => setHoveredPoint(null)} style={{ cursor: "pointer" }}>
+                  {isCur && <circle cx={x(i)} cy={y(p.aqi)} r={7} fill="rgba(245,158,11,0.25)" />}
+                  <circle cx={x(i)} cy={y(p.aqi)} r={isCur ? 5 : 3.5}
+                    fill={isCur ? "#f59e0b" : isPred ? "#3b82f6" : "#10b981"}
+                    stroke={isCur ? "#fff" : "#111827"} strokeWidth={1.5} />
+                  <circle cx={x(i)} cy={y(p.aqi)} r={12} fill="transparent" />
+                </g>
+              );
+            })}
+            {hoveredPoint && (
+              <g>
+                <rect x={Math.min(x(hoveredPoint.idx) - 52, chartW - padR - 110)} y={y(hoveredPoint.aqi) - 42} width="104" height="32" rx="5" fill="#1f2937" stroke="#374151" strokeWidth="1" />
+                <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 26} textAnchor="middle" fill="white" fontSize="10" fontFamily="sans-serif" fontWeight="700">AQI {hoveredPoint.aqi} · {hoveredPoint.date?.slice(5)}</text>
+                <text x={Math.min(x(hoveredPoint.idx), chartW - padR - 52)} y={y(hoveredPoint.aqi) - 14} textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="sans-serif">
+                  {hoveredPoint.type === "predicted" ? `Predicted · ${hoveredPoint.confidence}% conf.` : hoveredPoint.type === "current" ? "Today (live)" : "Historical"}
+                </text>
+              </g>
+            )}
+            {allPoints.filter((_, i) => i % 7 === 0 || i === allPoints.length - 1).map((p) => {
+              const idx = allPoints.indexOf(p);
+              return <text key={p.date} x={x(idx)} y={chartH - 5} fill="#6b7280" fontSize="9" textAnchor="middle" fontFamily="sans-serif">{p.date?.slice(5)}</text>;
+            })}
+            <g transform={`translate(${padL + 8}, ${chartH - 18})`}>
+              <circle cx="0" cy="0" r="3.5" fill="#10b981" /><text x="8" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Historical</text>
+              <circle cx="72" cy="0" r="3.5" fill="#3b82f6" /><text x="80" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Predicted</text>
+              <circle cx="148" cy="0" r="4" fill="#f59e0b" stroke="#fff" strokeWidth="1" /><text x="156" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Today</text>
             </g>
-          )}
-          {allPoints.filter((_, i) => i % 7 === 0 || i === allPoints.length - 1).map((p) => {
-            const idx = allPoints.indexOf(p);
-            return <text key={p.date} x={x(idx)} y={chartH - 5} fill="#6b7280" fontSize="9" textAnchor="middle" fontFamily="sans-serif">{p.date?.slice(5)}</text>;
-          })}
-          <g transform={`translate(${padL + 8}, ${chartH - 18})`}>
-            <circle cx="0" cy="0" r="3.5" fill="#10b981" /><text x="8" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Historical</text>
-            <circle cx="72" cy="0" r="3.5" fill="#3b82f6" /><text x="80" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Predicted</text>
-            <circle cx="148" cy="0" r="4" fill="#f59e0b" stroke="#fff" strokeWidth="1" /><text x="156" y="3" fill="#9ca3af" fontSize="9" fontFamily="sans-serif">Today</text>
-          </g>
-        </svg>
+          </svg>
         </div>
       </div>
 
@@ -399,11 +399,19 @@ function AQIPredictorChart({ lat, lng, t }) {
 }
 
 
-function LocalAQICard({ station }) {
-  if (!station) return null;
-  const aqi = Math.round(station.aqi);
+// BUG FIX (misleading location): this card used to show a single raw CPCB
+// station's own name/city and its distance ("Nerul, Navi Mumbai • 34km
+// away") under the heading "Air quality near you" — even when that station
+// was tens of km from the user, which reads as if that distant place IS the
+// user's location. It now takes the /local-aqi payload: an AQI interpolated
+// for the user's own coordinates, labeled with the user's own reverse-
+// geocoded locality, with the monitoring-station distance demoted to a
+// small "based on N nearby stations" footnote instead of the headline.
+function LocalAQICard({ data }) {
+  if (!data) return null;
+  const aqi = Math.round(data.aqi);
   const color = aqiColor(aqi);
-  const label = aqiLabel(aqi);
+  const label = data.label || aqiLabel(aqi);
 
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-900 p-5 flex items-center gap-5">
@@ -416,10 +424,11 @@ function LocalAQICard({ station }) {
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-400 mb-1">Air quality near you</p>
         <p className="text-lg font-bold text-white">{label}</p>
-        <p className="text-xs text-gray-400 mt-1 truncate">
-          {station.station_name} • {Math.round(station.distance_km)}km away
+        <p className="text-xs text-gray-400 mt-1 truncate">{data.user_location}</p>
+        <p className="text-xs text-gray-500">
+          Dominant: {data.dominant_pollutant}
+          {data.station_count ? ` • based on ${data.station_count} nearby monitoring station${data.station_count > 1 ? "s" : ""}` : ""}
         </p>
-        <p className="text-xs text-gray-500">{station.city}, {station.state} • {station.dominant_pollutant}</p>
       </div>
     </div>
   );
@@ -432,7 +441,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
   const [mapReady, setMapReady] = useState(false);
   const [stations, setStations] = useState([]);
   const [reports, setReports] = useState([]);
-  const [nearestStation, setNearestStation] = useState(null);
+  const [localAqi, setLocalAqi] = useState(null);
   const [locating, setLocating] = useState(false);
   const [localLat, setLocalLat] = useState(userLat);
   const [localLng, setLocalLng] = useState(userLng);
@@ -466,9 +475,11 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
 
   useEffect(() => {
     if (!localLat || !localLng) return;
-    fetch(`${API}/nearest-station?lat=${localLat}&lng=${localLng}`)
+    // BUG FIX: was /nearest-station (a single, possibly-far-away raw
+    // station) — now /local-aqi, interpolated for the user's own coords.
+    fetch(`${API}/local-aqi?lat=${localLat}&lng=${localLng}`)
       .then((r) => r.json())
-      .then(setNearestStation)
+      .then(setLocalAqi)
       .catch(() => { });
     fetch(`${API}/reports/nearby?lat=${localLat}&lng=${localLng}&radius_km=15`)
       .then((r) => r.json())
@@ -581,7 +592,7 @@ function MapTab({ userLat, userLng, onLocationDetected, t }) {
         </div>
       )}
 
-      {nearestStation && <LocalAQICard station={nearestStation} />}
+      {localAqi && <LocalAQICard data={localAqi} />}
 
       {localLat && (
         <div className="flex items-center justify-between">
@@ -684,10 +695,10 @@ function AlertsTab({ userLat, userLng, t }) {
       {/* Severity scale legend */}
       <div className="grid grid-cols-5 gap-1 text-center">
         {[
-          { level: 1, label: "Good",      color: "bg-green-900 border-green-700 text-green-300",   icon: "✅" },
-          { level: 2, label: "Moderate",  color: "bg-yellow-900 border-yellow-700 text-yellow-300", icon: "🟡" },
+          { level: 1, label: "Good", color: "bg-green-900 border-green-700 text-green-300", icon: "✅" },
+          { level: 2, label: "Moderate", color: "bg-yellow-900 border-yellow-700 text-yellow-300", icon: "🟡" },
           { level: 3, label: "Unhealthy", color: "bg-orange-900 border-orange-700 text-orange-300", icon: "⚠️" },
-          { level: 4, label: "Hazardous", color: "bg-red-900 border-red-700 text-red-300",          icon: "🛑" },
+          { level: 4, label: "Hazardous", color: "bg-red-900 border-red-700 text-red-300", icon: "🛑" },
           { level: 5, label: "Emergency", color: "bg-purple-900 border-purple-700 text-purple-300", icon: "🚨" },
         ].map(({ level, label, color, icon }) => {
           const count = alerts.filter(a => a.severity === level).length;
@@ -708,7 +719,7 @@ function AlertsTab({ userLat, userLng, t }) {
         if (group.length === 0) return null;
         const cfg = {
           5: { bg: "bg-purple-900/20 border-purple-500", label: "🚨 EMERGENCY", tc: "text-purple-300" },
-          4: { bg: "bg-red-900/20 border-red-500",       label: "🛑 HAZARDOUS", tc: "text-red-300" },
+          4: { bg: "bg-red-900/20 border-red-500", label: "🛑 HAZARDOUS", tc: "text-red-300" },
           3: { bg: "bg-orange-900/20 border-orange-500", label: "⚠️ UNHEALTHY", tc: "text-orange-300" },
         }[sev];
         return (
@@ -1005,7 +1016,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
-  const [nearestStation, setNearestStation] = useState(null);
+  const [localAqi, setLocalAqi] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(() => {
@@ -1013,7 +1024,7 @@ export default function App() {
   });
   const recognitionRef = useRef(null);
   const fileRef = useRef();
-  
+
   // Use custom API URL if set, otherwise use default
   const activeApiUrl = customApiUrl || API;
 
@@ -1025,26 +1036,26 @@ export default function App() {
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
 
-      recognitionRef.current.onresult = (event) => {
-        let finalTranscript = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+        recognitionRef.current.onresult = (event) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
           }
-        }
-        if (finalTranscript) {
-          setText((prev) => prev + (prev ? " " : "") + finalTranscript);
-        }
-      };
+          if (finalTranscript) {
+            setText((prev) => prev + (prev ? " " : "") + finalTranscript);
+          }
+        };
 
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        setIsListening(false);
-      };
+        recognitionRef.current.onerror = (event) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(false);
+        };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
       }
     } catch (e) {
       console.warn("Speech recognition setup failed", e);
@@ -1127,7 +1138,7 @@ export default function App() {
         let res = await fetch("https://get.geojs.io/v1/ip/geo.json").catch(() => null);
         if (!res || !res.ok) res = await fetch("https://ipapi.co/json/").catch(() => null);
         if (!res || !res.ok) throw new Error("Fallback failed");
-        
+
         const data = await res.json();
         const la = parseFloat(data.latitude);
         const lo = parseFloat(data.longitude);
@@ -1137,9 +1148,10 @@ export default function App() {
           const locName = await fetchLocality(la, lo);
           setLocationDisplay(locName);
           setError("Used approximate network location (GPS disabled).");
-          fetch(`${API}/nearest-station?lat=${la}&lng=${lo}`)
+          // BUG FIX: was /nearest-station (raw, possibly-far-away station)
+          fetch(`${API}/local-aqi?lat=${la}&lng=${lo}`)
             .then((r) => r.json())
-            .then(setNearestStation).catch(() => {});
+            .then(setLocalAqi).catch(() => { });
         } else {
           throw new Error("Invalid format");
         }
@@ -1164,9 +1176,10 @@ export default function App() {
           // #region agent log
           agentLog("App.jsx:geo", "geolocation success", { la, lo }, "D");
           // #endregion
-          fetch(`${API}/nearest-station?lat=${la}&lng=${lo}`)
+          // BUG FIX: was /nearest-station (raw, possibly-far-away station)
+          fetch(`${API}/local-aqi?lat=${la}&lng=${lo}`)
             .then((r) => r.json())
-            .then(setNearestStation)
+            .then(setLocalAqi)
             .catch(() => { });
         },
         (err) => {
@@ -1210,6 +1223,7 @@ export default function App() {
     if (!file) return;
     setPhoto(file);
     setPreview(URL.createObjectURL(file));
+    setResult(null); // Clear result on new photo
   }
 
   function handleLocation() {
@@ -1218,7 +1232,7 @@ export default function App() {
         let res = await fetch("https://get.geojs.io/v1/ip/geo.json").catch(() => null);
         if (!res || !res.ok) res = await fetch("https://ipapi.co/json/").catch(() => null);
         if (!res || !res.ok) throw new Error("Fallback failed");
-        
+
         const data = await res.json();
         const la = parseFloat(data.latitude);
         const lo = parseFloat(data.longitude);
@@ -1236,9 +1250,9 @@ export default function App() {
       }
     };
 
-    if (!navigator.geolocation) { 
-      fallbackToIp(); 
-      return; 
+    if (!navigator.geolocation) {
+      fallbackToIp();
+      return;
     }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -1257,6 +1271,7 @@ export default function App() {
 
   function handleLocationInput(val) {
     setLocationDisplay(val);
+    setResult(null); // Clear result on location text change
     const parts = val.split(",").map((s) => s.trim());
     if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[0] !== '' && parts[1] !== '') {
       setLat(parts[0]);
@@ -1268,6 +1283,7 @@ export default function App() {
 
   async function handleSubmit() {
     setError(null);
+    setResult(null); // Clear previous result immediately on submit
     if (!text) { setError(t.describe + " is required."); return; }
     if (!lat || !lng) { setError(t.location + " is required."); return; }
     setLoading(true);
@@ -1292,22 +1308,22 @@ export default function App() {
       if (photo) fd.append("photo", photo);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for image upload + AI
-      
-      const res = await fetch(`${API}/report`, { 
-        method: "POST", 
+
+      const res = await fetch(`${API}/report`, {
+        method: "POST",
         body: fd,
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setResult(data);
     } catch (e) {
       let errorMsg = e.message;
       if (errorMsg === "Failed to fetch" || errorMsg.includes("abort") || e.name === "AbortError") {
-         errorMsg = `Failed to connect to ${API}. Your connection might be unstable, or the server is spinning up. Try again.`;
+        errorMsg = `Failed to connect to ${API}. Your connection might be unstable, or the server is spinning up. Try again.`;
       }
       setError(`Submit failed: ${errorMsg}`);
     } finally {
@@ -1339,17 +1355,17 @@ export default function App() {
             <option value="bn">বাংলা</option>
           </select>
 
-          {nearestStation && (
+          {localAqi && !localAqi.error && (
             <div className="flex items-center gap-2">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-gray-950 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                style={{ backgroundColor: aqiColor(nearestStation.aqi) }}
+                style={{ backgroundColor: aqiColor(localAqi.aqi) }}
               >
-                {Math.round(nearestStation.aqi)}
+                {Math.round(localAqi.aqi)}
               </div>
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-medium text-white">{aqiLabel(nearestStation.aqi)}</p>
-                <p className="text-xs text-gray-400">{nearestStation.city}</p>
+                <p className="text-xs font-medium text-white">{localAqi.label || aqiLabel(localAqi.aqi)}</p>
+                <p className="text-xs text-gray-400">{localAqi.user_location}</p>
               </div>
             </div>
           )}
@@ -1377,19 +1393,19 @@ export default function App() {
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6 animate-slide-up">
         {tab === "Report" && (
           <>
-            {nearestStation && (
+            {localAqi && !localAqi.error && (
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center justify-between shadow-xl">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide font-bold">Current Status</p>
-                  <p className="text-xl font-bold text-white mt-0.5" style={{ color: aqiColor(nearestStation.aqi) }}>
-                    {aqiLabel(nearestStation.aqi).toUpperCase()}
+                  <p className="text-xl font-bold text-white mt-0.5" style={{ color: aqiColor(localAqi.aqi) }}>
+                    {(localAqi.label || aqiLabel(localAqi.aqi)).toUpperCase()}
                   </p>
                 </div>
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-gray-950 text-lg shadow-[0_0_15px_rgba(255,255,255,0.15)]"
-                  style={{ backgroundColor: aqiColor(nearestStation.aqi) }}
+                  style={{ backgroundColor: aqiColor(localAqi.aqi) }}
                 >
-                  {Math.round(nearestStation.aqi)}
+                  {Math.round(localAqi.aqi)}
                 </div>
               </div>
             )}
@@ -1415,7 +1431,7 @@ export default function App() {
                 </div>
               </div>
             )}
-            {nearestStation && <LocalAQICard station={nearestStation} />}
+            {localAqi && !localAqi.error && <LocalAQICard data={localAqi} />}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -1434,7 +1450,10 @@ export default function App() {
                 rows={4}
                 placeholder="e.g. Black smoke from garbage dump near Hiranandani circle..."
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setResult(null); // Clear result on text change
+                }}
                 className={`w-full bg-gray-900 border rounded-lg px-4 py-3 text-sm resize-none focus:outline-none transition-colors placeholder-gray-600 ${isListening ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'border-gray-700 focus:border-emerald-500'}`}
               />
             </div>
@@ -1578,121 +1597,3 @@ export default function App() {
                       )}
                     </div>
                   )}
-                  {result.analysis?.precautions?.length > 0 && (
-                    <div className="bg-gray-900 border border-emerald-900/30 rounded-xl px-3 py-2.5">
-                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
-                        <Shield className="text-blue-400 w-3.5 h-3.5" /> Precautions
-                      </p>
-                      <ul className="space-y-0.5">
-                        {result.analysis.precautions.slice(0, 2).map((prec, i) => (
-                          <li key={i} className="text-xs text-gray-400 flex items-start gap-1.5">
-                            <span className="text-blue-400 flex-shrink-0">✧</span><span className="line-clamp-1">{prec}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-
-                {/* Advisory */}
-                {result.analysis?.advisory && (
-                  <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-xl px-5 py-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm text-emerald-300 font-medium flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-emerald-400" /> Advisory
-                      </p>
-                      <button
-                        onClick={() => speakText(result.analysis.advisory, lang)}
-                        className="text-emerald-400 hover:text-emerald-300 bg-emerald-900/30 p-1.5 rounded-full transition-colors"
-                        title="Read aloud"
-                      >
-                        <Volume2 size={16} />
-                      </button>
-                    </div>
-                    <p className="text-sm text-emerald-300/90 leading-relaxed">{result.analysis.advisory}</p>
-                  </div>
-                )}
-
-                {result.analysis?.error && (
-                  <p className="text-xs text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {result.analysis.error}</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "Prediction" && (
-          <div className="space-y-4">
-            {!(userLat && userLng) && !(lat && lng) ? (
-              <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center space-y-4">
-                <p className="text-4xl"></p>
-                <p className="text-lg text-white font-medium">{t.aqiPredLocReq}</p>
-                <p className="text-sm text-gray-400 max-w-md mx-auto">
-                  {t.aqiPredLocReqDesc}
-                </p>
-                <button
-                  onClick={() => setTab("Report")}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors inline-block mt-2"
-                >
-                  {t.alertsTabGoToReport}
-                </button>
-              </div>
-            ) : (
-              <AQIPredictorChart lat={userLat || parseFloat(lat)} lng={userLng || parseFloat(lng)} t={t} />
-            )}
-          </div>
-        )}
-
-        {tab === "Map" && (
-          <MapTab userLat={userLat} userLng={userLng} onLocationDetected={handleLocationDetected} t={t} />
-        )}
-
-        {tab === "Alerts" && (
-          <AlertsTab userLat={userLat} userLng={userLng} t={t} />
-        )}
-
-        {tab === "Chat" && (
-          <ChatTab userLat={userLat} userLng={userLng} lang={lang} t={t} />
-        )}
-
-        {tab === "Municipal" && (
-          <MunicipalTab userLat={userLat} userLng={userLng} t={t} />
-        )}
-      </main>
-
-      {/* Settings / API URL Fallback Footer */}
-      <footer className="w-full bg-gray-900 border-t border-gray-800 p-4 mt-8">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-gray-500">
-            Current Backend URL: <span className="font-mono text-gray-400">{activeApiUrl}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input 
-              type="text" 
-              placeholder="Custom Backend URL (e.g. https://...)" 
-              value={customApiUrl}
-              onChange={(e) => setCustomApiUrl(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-white placeholder-gray-500 w-64 focus:outline-none focus:border-emerald-500"
-            />
-            <button 
-              onClick={() => {
-                try {
-                  if (customApiUrl) {
-                    localStorage.setItem('airwatch_api_url', customApiUrl);
-                  } else {
-                    localStorage.removeItem('airwatch_api_url');
-                  }
-                } catch (e) {}
-                window.location.reload();
-              }}
-              className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded transition-colors"
-            >
-              Save & Reload
-            </button>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
