@@ -1483,6 +1483,7 @@ export default function App() {
       fd.append("lat", lat);
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
+      if (user?.email) fd.append("email", user.email);
       if (photo) fd.append("photo", photo);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for image upload + AI
