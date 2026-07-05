@@ -1253,6 +1253,12 @@ export default function App() {
           if (!data.error) setWeatherData(data);
         })
         .catch(() => { });
+      fetch(`${API}/local-aqi?lat=${userLat}&lng=${userLng}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.error) setLocalAqi(data);
+        })
+        .catch(() => { });
     }
   }, [userLat, userLng]);
 

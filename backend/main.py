@@ -8,6 +8,9 @@ import random
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from PIL import Image
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
 
@@ -70,6 +73,50 @@ HEADERS = {
     "apikey": SUPABASE_ANON_KEY,
     "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
 }
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
+
+def send_thank_you_email(to_email: str, location: str, severity: int):
+    if not EMAIL_USER or not EMAIL_APP_PASSWORD or not to_email:
+        print("[EMAIL SYSTEM] Missing credentials or email. Skipping actual send.")
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"AirWatch Team <{EMAIL_USER}>"
+        msg['To'] = to_email
+        msg['Subject'] = "Thank You for Your AirWatch Report! 🌿"
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #064e3b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0; font-size: 24px;">🌿 AirWatch</h1>
+            </div>
+            <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                <p>Hello,</p>
+                <p>We successfully received your pollution report near <strong>{location}</strong>.</p>
+                <p>Your contribution directly helps keep the community safe and alerts authorities to hazardous air quality conditions.</p>
+                <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 0; color: #92400e; font-weight: bold;">Estimated Severity: {severity} / 5</p>
+                </div>
+                <p>Thank you for being an active citizen!</p>
+                <p style="margin-bottom: 0;">Stay safe,<br/>The AirWatch Team</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"[EMAIL SYSTEM] Successfully sent email to {to_email}")
+    except Exception as e:
+        print(f"[EMAIL SYSTEM] Failed to send email: {e}")
 
 # ── Live CPCB station data (from real-time CSV, last updated 01-07-2026) ──────
 # Aggregated per station: {station_key: {lat, lng, city, state, pollutants: {PM2.5:avg,...}}}
@@ -950,13 +997,11 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
                 }
             )
 
-        # --- Send Thank You Email (Mock for Hackathon) ---
+        # --- Send Thank You Email ---
         if email:
-            print(f"\n[EMAIL SYSTEM] Sending Thank You email to: {email}")
-            print(f"[EMAIL SYSTEM] Subject: Thank You for Your AirWatch Report!")
-            print(f"[EMAIL SYSTEM] Body: We received your pollution report near {location}. "
-                  f"Your contribution helps keep the community safe! Estimated Severity: {severity}/5.")
-            print("[EMAIL SYSTEM] Status: Sent Successfully (Simulated)\n")
+            print(f"\n[EMAIL SYSTEM] Queuing email to {email}")
+            # Fire and forget (in a real prod app, use Celery/BackgroundTasks)
+            asyncio.create_task(asyncio.to_thread(send_thank_you_email, email, location, severity))
 
         return {
             "success": True,
