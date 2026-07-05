@@ -997,21 +997,29 @@ function MunicipalTab({ userLat, userLng, t }) {
                   <p className="text-sm text-gray-400 mt-1">{hs.report_count} citizen reports · {hs.pollution_type}</p>
                   <p className="text-xs text-gray-500 mt-1">Lat: {hs.lat.toFixed(4)}, Lng: {hs.lng.toFixed(4)}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDispatch(hs.lat, hs.lng, 'Water-Mist Cannon')}
-                    disabled={actionLoading}
-                    className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg shadow disabled:opacity-50 transition-colors"
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="tel:112"
+                    className="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg shadow transition-colors flex items-center gap-1"
                   >
-                    💦 {t.deployCannon}
-                  </button>
-                  <button
-                    onClick={() => handleDispatch(hs.lat, hs.lng, 'Cleanup Crew')}
-                    disabled={actionLoading}
-                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg shadow disabled:opacity-50 transition-colors"
+                    📞 Call Emergency
+                  </a>
+                  <a
+                    href="https://cpcb.nic.in/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg shadow transition-colors flex items-center gap-1"
                   >
-                    🧹 {t.dispatchCrew}
-                  </button>
+                    🏛️ CPCB Portal
+                  </a>
+                  <a
+                    href="https://pgportal.gov.in/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg shadow transition-colors flex items-center gap-1"
+                  >
+                    🌐 Govt PG Portal
+                  </a>
                 </div>
               </div>
             ))}
