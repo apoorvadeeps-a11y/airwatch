@@ -1079,7 +1079,7 @@ function AuthScreen({ onLogin }) {
         if (user) {
           onLogin(user);
         } else {
-          setError('Invalid email or password. If you don\\'t have an account, please sign up.');
+          setError("Invalid email or password. If you don't have an account, please sign up.");
         }
       } else {
         if (users.some(u => u.email === email)) {
