@@ -203,15 +203,28 @@ function AQIPredictorChart({ lat, lng, t }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!lat || !lng) return;
     setLoading(true);
-    fetch(`${API}/aqi-prediction?lat=${lat}&lng=${lng}`)
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, [lat, lng]);
+    setError(null);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
+    fetch(`${API}/aqi-prediction?lat=${lat}&lng=${lng}`, { signal: ctrl.signal })
+      .then((r) => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json(); })
+      .then((d) => { clearTimeout(timer); setData(d); setLoading(false); })
+      .catch((e) => {
+        clearTimeout(timer);
+        if (e.name === 'AbortError') {
+          setError('Request timed out. The server may be waking up — tap Retry in a moment.');
+        } else {
+          setError(e.message);
+        }
+        setLoading(false);
+      });
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, [lat, lng, retryCount]);
 
   if (!lat || !lng) {
     return (
@@ -227,15 +240,22 @@ function AQIPredictorChart({ lat, lng, t }) {
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
       <Activity className="w-6 h-6 text-emerald-500 animate-pulse mb-3" />
       <div className="text-gray-400 text-sm animate-pulse">{t.aqiPredLoading}</div>
+      <p className="text-xs text-gray-600 mt-2">This may take up to 30s on first load</p>
     </div>
   );
 
   if (error || (data && data.error)) {
     return (
-      <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6 text-center">
+      <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6 text-center space-y-3">
         <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-2" />
         <p className="text-red-400 text-sm font-medium">Unable to load prediction</p>
-        <p className="text-red-300/70 text-xs mt-1">{error || data.error}</p>
+        <p className="text-red-300/70 text-xs">{error || data.error}</p>
+        <button
+          onClick={() => setRetryCount(c => c + 1)}
+          className="mt-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-5 py-2 rounded-lg transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }

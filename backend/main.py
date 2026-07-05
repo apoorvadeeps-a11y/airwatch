@@ -1245,6 +1245,20 @@ async def aqi_prediction(lat: float, lng: float):
     using Indian CPCB breakpoints — not the stale aggregated 'aqi' column.
     Inverse-distance-weights nearby stations for accurate local anchor.
     """
+    try:
+        return await _aqi_prediction_impl(lat, lng)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return {
+            "error": f"Prediction temporarily unavailable: {str(exc)[:120]}",
+            "historical": [],
+            "predicted": [],
+        }
+
+
+async def _aqi_prediction_impl(lat: float, lng: float):
+    """Inner implementation — called by the route handler inside a try/except."""
     resolved = await _resolve_local_aqi(lat, lng)
     if "error" in resolved:
         return {"error": resolved["error"], "historical": [], "predicted": []}
