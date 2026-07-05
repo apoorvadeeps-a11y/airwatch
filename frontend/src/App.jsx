@@ -1055,122 +1055,13 @@ function MunicipalTab({ userLat, userLng, t }) {
   );
 }
 
-function AuthScreen({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (!email || !password || (!isLogin && !name)) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    try {
-      const users = JSON.parse(localStorage.getItem('airwatch_users') || '[]');
-      
-      if (isLogin) {
-        const user = users.find(u => u.email === email && u.password === password);
-        if (user) {
-          onLogin(user);
-        } else {
-          setError("Invalid email or password. If you don't have an account, please sign up.");
-        }
-      } else {
-        if (users.some(u => u.email === email)) {
-          setError('An account with this email already exists.');
-          return;
-        }
-        const newUser = { name, email, password };
-        users.push(newUser);
-        localStorage.setItem('airwatch_users', JSON.stringify(users));
-        onLogin(newUser);
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6 font-sans">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-8 shadow-2xl animate-slide-up">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 mb-2">🌿 AirWatch</h1>
-          <p className="text-gray-400">{isLogin ? 'Welcome back! Please log in.' : 'Create your account to get started.'}</p>
-        </div>
-        
-        {error && (
-          <div className="bg-red-950/50 border border-red-900 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center flex items-center justify-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300 ml-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                placeholder="John Doe"
-              />
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300 ml-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-300 ml-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl shadow-lg transition-colors mt-6"
-          >
-            {isLogin ? 'Sign In' : 'Create Account'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => { setIsLogin(!isLogin); setError(''); }}
-            className="text-emerald-400 hover:text-emerald-300 text-sm transition-colors"
-          >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// AuthScreen removed as requested
 
 export default function App() {
-  const [user, setUser] = useState(() => {
+  const [userEmail, setUserEmail] = useState(() => {
     try {
-      const saved = localStorage.getItem('airwatch_session');
-      return saved ? JSON.parse(saved) : null;
-    } catch(e) { return null; }
+      return localStorage.getItem('airwatch_email') || "";
+    } catch(e) { return ""; }
   });
 
   const [tab, setTab] = useState("Report");
@@ -1206,17 +1097,18 @@ export default function App() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
+        // Fix for Android duplicate words: disable interimResults
+        recognitionRef.current.interimResults = false;
 
         recognitionRef.current.onresult = (event) => {
-          let finalTranscript = "";
+          let newTranscript = "";
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
+              newTranscript += event.results[i][0].transcript;
             }
           }
-          if (finalTranscript) {
-            setText((prev) => prev + (prev ? " " : "") + finalTranscript);
+          if (newTranscript) {
+            setText((prev) => prev + (prev ? " " : "") + newTranscript.trim());
           }
         };
 
@@ -1483,7 +1375,7 @@ export default function App() {
       fd.append("lat", lat);
       fd.append("lng", lng);
       fd.append("location", locationDisplay);
-      if (user?.email) fd.append("email", user.email);
+      if (userEmail) fd.append("email", userEmail);
       if (photo) fd.append("photo", photo);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for image upload + AI
@@ -1510,19 +1402,7 @@ export default function App() {
     }
   }
 
-  const handleLogin = (userData) => {
-    localStorage.setItem('airwatch_session', JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('airwatch_session');
-    setUser(null);
-  };
-
-  if (!user) {
-    return <AuthScreen onLogin={handleLogin} />;
-  }
+  // Auth functions removed
 
   const severity = result?.analysis?.severity;
   const severityStyle = SEVERITY_COLORS[severity] || SEVERITY_COLORS[3];
@@ -1532,7 +1412,7 @@ export default function App() {
       <header className="border-b border-[var(--border-subtle)] px-6 py-4 flex items-center justify-between glass-card rounded-none sticky top-0 z-50">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">🌿 {t.title}</h1>
-          <p className="text-xs text-[var(--text-secondary)]">{t.sub} • Hello, {user.name.split(' ')[0]}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{t.sub}</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -1562,12 +1442,6 @@ export default function App() {
               </div>
             </div>
           )}
-          <button
-            onClick={handleLogout}
-            className="text-xs bg-red-900/40 text-red-400 hover:bg-red-800/60 px-3 py-1.5 rounded-md transition-colors font-medium border border-red-800/50"
-          >
-            Logout
-          </button>
         </div>
       </header>
 
@@ -1702,6 +1576,20 @@ export default function App() {
                 {error}
               </div>
             )}
+
+            <div className="space-y-2">
+              <label className="text-sm text-gray-300 font-medium">Email (optional - for receipt)</label>
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => {
+                  setUserEmail(e.target.value);
+                  localStorage.setItem('airwatch_email', e.target.value);
+                }}
+                placeholder="you@example.com"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-gray-600 transition-colors"
+              />
+            </div>
 
             <button
               onClick={handleSubmit}

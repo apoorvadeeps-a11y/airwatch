@@ -114,7 +114,7 @@ def send_thank_you_email(to_email: str, location: str, severity: int):
         server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print(f"[EMAIL SYSTEM] Successfully sent email to {to_email}")
+        print(f"[EMAIL SYSTEM] Successfully sent email for report at {location}")
     except Exception as e:
         print(f"[EMAIL SYSTEM] Failed to send email: {e}")
 
