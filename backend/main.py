@@ -666,7 +666,9 @@ def _validate_analysis(analysis: dict, station: dict = None) -> dict:
 
     # 2) Model hedged ("dark image", "cannot assess") but still claimed a
     #    high severity — the hedge means it had no real evidence, so cap it.
-    if has_hedge and not has_strong_visual:
+    #    BUG FIX: Removed "and not has_strong_visual" because if the AI says
+    #    "cannot assess smoke, haze", it triggers both the hedge AND the strong visual.
+    if has_hedge:
         severity = min(severity, 2)
         analysis["government_consistency"] = analysis.get("government_consistency") or "No data"
 
@@ -1421,7 +1423,7 @@ async def aqi_prediction(lat: float, lng: float):
 
     # ── 8. 7-day prediction ───────────────────────────────────────────────────
     predicted = []
-    last_aqi = current_aqi
+    base_aqi = current_aqi
 
     # PREDICTION RNG FIX: Use a different seed for forward prediction
     pred_seed = seed ^ 0x5A5A
@@ -1434,22 +1436,24 @@ async def aqi_prediction(lat: float, lng: float):
         s_fwd, _ = SEASONAL[m_fwd]
         traffic = DOW_FACTOR[dow]
 
-        # Trend contribution: decays exponentially (forecast uncertainty)
-        trend_contrib = slope * (0.82 ** i)
+        # Trend contribution: linear projection that fades over time
+        trend_contrib = slope * i * (0.82 ** i)
 
         # Weather influence fades linearly after day 3
         w_fade = max(0.25, 1.0 - (i - 1) * 0.15)
         w_adj = 1.0 + (weather_mult - 1.0) * w_fade
 
-        # Mean-reversion toward seasonal norm (prevents runaway predictions)
-        # Use current_aqi * relative ratio between future month and today's month
-        season_norm = current_aqi * (s_fwd / seasonal_base)
-        season_pull = (season_norm - last_aqi) * 0.06
-
-        projected = (last_aqi + trend_contrib + season_pull) * traffic * w_adj
-        projected += rng_pred.gauss(0, current_aqi * 0.015)   # small realistic jitter
+        # Use base_aqi to prevent exponential compounding of traffic and weather multipliers
+        season_ratio = s_fwd / seasonal_base
+        
+        # Calculate unadjusted projection
+        projected = (base_aqi * season_ratio) + trend_contrib
+        
+        # Apply daily multipliers and jitter
+        projected = projected * traffic * w_adj
+        projected += rng_pred.gauss(0, current_aqi * 0.015)
+        
         projected = max(10, min(500, projected))
-        last_aqi = projected
 
         lbl = _label(round(projected))
         predicted.append({

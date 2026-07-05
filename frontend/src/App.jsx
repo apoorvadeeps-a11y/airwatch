@@ -1554,9 +1554,9 @@ export default function App() {
                         <Activity className="w-3 h-3 text-gray-400" /> vs Official: {result.analysis.government_consistency}
                       </span>
                     )}
-                    {result.station && (
+                    {localAqi && !localAqi.error && (
                       <span className="bg-gray-800/60 px-2.5 py-1 rounded-md text-gray-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-gray-500" /> {result.station.station_name} — AQI {result.station.aqi} ({Math.round(result.station.distance_km)}km)
+                        <MapPin className="w-3 h-3 text-gray-500" /> {localAqi.user_location} — AQI {Math.round(localAqi.aqi)}
                       </span>
                     )}
                   </div>
@@ -1597,3 +1597,20 @@ export default function App() {
                       )}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Tab Routing */}
+        {tab === "Prediction" && <AQIPredictorChart lat={userLat || lat} lng={userLng || lng} t={t} />}
+        {tab === "Map" && <MapTab userLat={userLat} userLng={userLng} onLocationDetected={handleLocationDetected} t={t} />}
+        {tab === "Alerts" && <AlertsTab userLat={userLat} userLng={userLng} t={t} />}
+        {tab === "Chat" && <ChatTab userLat={userLat} userLng={userLng} lang={lang} t={t} />}
+        {tab === "Municipal" && <MunicipalTab userLat={userLat} userLng={userLng} t={t} />}
+
+      </main>
+    </div>
+  );
+}
