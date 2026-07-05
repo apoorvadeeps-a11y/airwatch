@@ -1204,7 +1204,8 @@ async def _resolve_local_aqi(lat: float, lng: float) -> dict:
                                     "aqi": round(float(s["aqi"]))} for s in close_stored[:3]]
         elif rpc_stations:
             s0 = rpc_stations[0]
-            current_aqi = float(s0.get("aqi", 75))
+            aqi_val = s0.get("aqi")
+            current_aqi = float(aqi_val) if aqi_val is not None else 75.0
             station_name, city = s0.get("station_name","Unknown"), s0.get("city","Unknown")
             dominant_pollutant = s0.get("dominant_pollutant","PM2.5")
             candidate_stations = [{"name": station_name,
@@ -1318,9 +1319,14 @@ async def _aqi_prediction_impl(lat: float, lng: float):
     # ── 2. Fetch live weather ──────────────────────────────────────────────────
     weather_data = await get_weather(lat, lng)
     weather_ok = not weather_data.get("error")
-    temp  = float(weather_data.get("temperature", 28)) if weather_ok else 28.0
-    wind  = float(weather_data.get("wind_speed",   10)) if weather_ok else 10.0
-    hum   = float(weather_data.get("humidity",     55)) if weather_ok else 55.0
+    t_val = weather_data.get("temperature")
+    temp  = float(t_val) if weather_ok and t_val is not None else 28.0
+    
+    w_val = weather_data.get("wind_speed")
+    wind  = float(w_val) if weather_ok and w_val is not None else 10.0
+    
+    h_val = weather_data.get("humidity")
+    hum   = float(h_val) if weather_ok and h_val is not None else 55.0
     cond  = weather_data.get("condition", "Clear sky")
     wcode = int(weather_data.get("weather_code", 0)) if weather_ok else 0
 
