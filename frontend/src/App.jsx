@@ -200,7 +200,7 @@ function aqiLabel(aqi) {
 
 function AQIPredictorChart({ lat, lng, t }) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
@@ -213,16 +213,43 @@ function AQIPredictorChart({ lat, lng, t }) {
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [lat, lng]);
 
+  if (!lat || !lng) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center space-y-3">
+        <MapPin className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+        <p className="text-white font-medium">{t.aqiPredLocReq}</p>
+        <p className="text-xs text-gray-400">{t.aqiPredLocReqDesc}</p>
+      </div>
+    );
+  }
+
   if (loading) return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
       <Activity className="w-6 h-6 text-emerald-500 animate-pulse mb-3" />
       <div className="text-gray-400 text-sm animate-pulse">{t.aqiPredLoading}</div>
     </div>
   );
-  if (error || !data || data.error) return null;
+
+  if (error || (data && data.error)) {
+    return (
+      <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6 text-center">
+        <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+        <p className="text-red-400 text-sm font-medium">Unable to load prediction</p>
+        <p className="text-red-300/70 text-xs mt-1">{error || data.error}</p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   const allPoints = [...(data.historical || []), ...(data.predicted || [])];
-  if (allPoints.length === 0) return null;
+  if (allPoints.length === 0) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-400 text-sm">
+        No prediction data available for this location.
+      </div>
+    );
+  }
 
   const historicalCount = (data.historical || []).length;
   const maxAqi = Math.max(...allPoints.map((p) => p.aqi), 200);
