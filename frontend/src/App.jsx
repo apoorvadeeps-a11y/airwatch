@@ -1061,7 +1061,7 @@ export default function App() {
   const [userEmail, setUserEmail] = useState(() => {
     try {
       return localStorage.getItem('airwatch_email') || "";
-    } catch(e) { return ""; }
+    } catch (e) { return ""; }
   });
 
   const [tab, setTab] = useState("Report");

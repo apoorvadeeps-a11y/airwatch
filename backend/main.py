@@ -1,5 +1,5 @@
 import base64, json, os, re, io, hashlib, time, asyncio
-from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi import FastAPI, UploadFile, File, Form, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import httpx
@@ -78,13 +78,16 @@ EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
 
 def send_thank_you_email(to_email: str, location: str, severity: int):
-    if not EMAIL_USER or not EMAIL_APP_PASSWORD or not to_email:
-        print("[EMAIL SYSTEM] Missing credentials or email. Skipping actual send.")
+    email_user = os.getenv("EMAIL_USER")
+    email_app_password = os.getenv("EMAIL_APP_PASSWORD")
+    
+    if not email_user or not email_app_password or not to_email:
+        print(f"[EMAIL SYSTEM] Missing credentials (user={bool(email_user)}, pass={bool(email_app_password)}, to={bool(to_email)}). Skipping actual send.")
         return
 
     try:
         msg = MIMEMultipart()
-        msg['From'] = f"AirWatch Team <{EMAIL_USER}>"
+        msg['From'] = f"AirWatch Team <{email_user}>"
         msg['To'] = to_email
         msg['Subject'] = "Thank You for Your AirWatch Report! 🌿"
 
@@ -111,10 +114,10 @@ def send_thank_you_email(to_email: str, location: str, severity: int):
         
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
+        server.login(email_user, email_app_password)
         server.send_message(msg)
         server.quit()
-        print(f"[EMAIL SYSTEM] Successfully sent email for report at {location}")
+        print(f"[EMAIL SYSTEM] Successfully sent email for report at {location} to {to_email}")
     except Exception as e:
         print(f"[EMAIL SYSTEM] Failed to send email: {e}")
 
@@ -859,6 +862,7 @@ async def get_hotspots():
 
 @app.post("/report")
 async def submit_report(
+    background_tasks: BackgroundTasks,
     text: str = Form(...),
     lat: float = Form(...),
     lng: float = Form(...),
@@ -1001,7 +1005,7 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
         if email:
             print(f"\n[EMAIL SYSTEM] Queuing email to {email}")
             # Fire and forget (in a real prod app, use Celery/BackgroundTasks)
-            asyncio.create_task(asyncio.to_thread(send_thank_you_email, email, location, severity))
+            background_tasks.add_task(send_thank_you_email, email, location, severity)
 
         return {
             "success": True,
