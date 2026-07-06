@@ -1684,6 +1684,20 @@ export default function App() {
                       )}
                     </div>
                   )}
+                  {result.analysis?.precautions?.length > 0 && (
+                    <div className="bg-gray-900 border border-emerald-900/30 rounded-xl px-3 py-2.5">
+                      <p className="font-medium text-xs text-white mb-1 flex items-center gap-1.5">
+                        <Shield className="text-emerald-400 w-3.5 h-3.5" /> Precautions
+                      </p>
+                      <ul className="space-y-0.5">
+                        {result.analysis.precautions.slice(0, 2).map((prec, i) => (
+                          <li key={i} className="text-xs text-gray-400 flex items-start gap-1.5">
+                            <span className="text-emerald-500 flex-shrink-0">✓</span><span className="line-clamp-1">{prec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -78,8 +78,8 @@ EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
 
 def send_thank_you_email(to_email: str, location: str, severity: int):
-    email_user = os.getenv("EMAIL_USER")
-    email_app_password = os.getenv("EMAIL_APP_PASSWORD")
+    email_user = os.getenv("EMAIL_USER", "").strip().strip('\'"')
+    email_app_password = os.getenv("EMAIL_APP_PASSWORD", "").strip().strip('\'"')
     
     if not email_user or not email_app_password or not to_email:
         print(f"[EMAIL SYSTEM] Missing credentials (user={bool(email_user)}, pass={bool(email_app_password)}, to={bool(to_email)}). Skipping actual send.")
@@ -957,8 +957,8 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
                 # Robust JSON extraction: try multiple strategies
                 cleaned = raw.strip()
                 # Strip markdown code fences
-                if "\'\'\'" in cleaned:
-                    match= re.search(r'\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`', cleaned)
+                if "```" in cleaned:
+                    match= re.search(r'```(?:json)?\s*([\s\S]*?)```', cleaned)
                     if match:
                         cleaned = match.group(1).strip()
                 # Try direct parse
@@ -1004,8 +1004,8 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
         # --- Send Thank You Email ---
         if email:
             print(f"\n[EMAIL SYSTEM] Queuing email to {email}")
-            # Fire and forget (in a real prod app, use Celery/BackgroundTasks)
-            background_tasks.add_task(send_thank_you_email, email, location, severity)
+            # Dispatch immediately using asyncio to prevent Render dropping post-response BackgroundTasks
+            asyncio.create_task(asyncio.to_thread(send_thank_you_email, email, location, severity))
 
         return {
             "success": True,

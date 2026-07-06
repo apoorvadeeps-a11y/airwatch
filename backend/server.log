@@ -1,0 +1,12 @@
+Received report: Thick smog and burning smell, lat: 19.0, lng: 72.8
+[gemini-2.5-flash][key..l2Pr1A] attempt 1 — status 200
+[gemini-2.5-flash] Success! Response: {
+  "pollution_detected": true,
+  "severity": 4,
+  "pollutant_type": "PM10",
+  "estimated_aqi_range": "170-200",
+  "detailed_visual_analysis": "Thick smog and burning smell reported.",
+  "government_c
+
+[EMAIL SYSTEM] Queuing email to apoorvadeeps@gmail.com
+INFO:     127.0.0.1:58194 - "POST /report HTTP/1.1" 200 OK
