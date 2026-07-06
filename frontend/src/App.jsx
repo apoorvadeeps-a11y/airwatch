@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
+import LandingPage from "./LandingPage";
 
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal", "Weather"];
 
@@ -1383,7 +1384,7 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-export default function App() {
+function MainApp() {
   // Auth: restore session from localStorage on first mount
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -2066,3 +2067,8 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() {
+  const [entered, setEntered] = useState(false);
+  return entered ? <MainApp /> : <LandingPage onEnter={() => setEntered(true)} />;
+}
