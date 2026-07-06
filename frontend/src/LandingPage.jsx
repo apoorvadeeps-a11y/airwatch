@@ -290,12 +290,11 @@ function TiltCard({ icon: Icon, label, fine }) {
   );
 }
 
-// ---------- ambient 3D background: humans wearing masks, helping each other up ----------
-// Stylized rather than photoreal (primitive geometry can only carry so much realism),
-// but composed as a clear narrative: one figure supporting another who's struggling,
-// a third holding a mask out to share — read as a small "citizens helping citizens"
-// scene, matching the app's civic-action framing.
-function EcoHologram3D({ mouseRef, fine, isMobile }) {
+// ---------- ambient 3D background: elegant data constellation ----------
+// Replaces the humanoid scene with a highly professional, abstract sensor network.
+// A flowing terrain of glowing nodes that gently react to cursor movement,
+// conveying "vast amounts of data points forming a clear picture".
+function DataConstellation3D({ mouseRef, fine, isMobile }) {
   const mountRef = useRef(null);
   const [failed, setFailed] = useState(false);
 
@@ -303,183 +302,90 @@ function EcoHologram3D({ mouseRef, fine, isMobile }) {
     const mount = mountRef.current;
     if (!mount) return;
 
-    let renderer, scene, camera, raf, group;
+    let renderer, scene, camera, raf;
     let disposed = false;
 
     try {
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const w = mount.clientWidth, h = mount.clientHeight;
-      const seg = isMobile ? 8 : 14; // lower poly count on phones
+      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
 
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
-      camera.position.set(0, 2.3, isMobile ? 8.5 : 9.5);
-      camera.lookAt(0, 1, 0);
+      camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
+      camera.position.set(0, 4, 12);
+      camera.lookAt(0, -1, 0);
 
-      renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
       renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 2));
+      renderer.setPixelRatio(dpr);
       mount.appendChild(renderer.domElement);
 
-      scene.add(new THREE.AmbientLight(0x1e293b, 1.1));
-      const key = new THREE.PointLight(0x34d399, 6, 20);
-      key.position.set(2, 4, 4);
-      scene.add(key);
-      const rim = new THREE.PointLight(0x38bdf8, 3.5, 20);
-      rim.position.set(-4, 2, -2);
-      scene.add(rim);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-      group = new THREE.Group();
-      group.position.y = -0.6;
-      scene.add(group);
+      // Create a grid of points
+      const countX = isMobile ? 35 : 65;
+      const countZ = isMobile ? 35 : 65;
+      const particleCount = countX * countZ;
+      
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const originalY = new Float32Array(particleCount);
+      const sizes = new Float32Array(particleCount);
+      const colors = new Float32Array(particleCount * 3);
 
-      const holoMat = (color, opacity = 0.6) =>
-        new THREE.MeshStandardMaterial({
-          color, emissive: color, emissiveIntensity: 0.55,
-          transparent: true, opacity, roughness: 0.4, metalness: 0.1,
-        });
-      const skinMat = holoMat(0xfcd9b8, 0.7);
-      const maskMat = new THREE.MeshStandardMaterial({
-        color: 0xe5e7eb, emissive: 0x64748b, emissiveIntensity: 0.3,
-        transparent: true, opacity: 0.85, roughness: 0.6,
-      });
+      const color1 = new THREE.Color(0x34d399); // Emerald
+      const color2 = new THREE.Color(0x38bdf8); // Blue
 
-      const ground = new THREE.Mesh(
-        new THREE.CircleGeometry(4.2, isMobile ? 24 : 48),
-        new THREE.MeshStandardMaterial({ color: 0x0f172a, transparent: true, opacity: 0.5, roughness: 1 })
-      );
-      ground.rotation.x = -Math.PI / 2;
-      group.add(ground);
+      let i = 0;
+      for (let ix = 0; ix < countX; ix++) {
+        for (let iz = 0; iz < countZ; iz++) {
+          const x = (ix - countX / 2) * 0.4;
+          const z = (iz - countZ / 2) * 0.4;
+          const y = (Math.sin(x * 0.5) + Math.cos(z * 0.5)) * 0.5;
 
-      for (let i = 1; i <= 3; i++) {
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(i * 1.2, i * 1.2 + 0.02, isMobile ? 24 : 48),
-          new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
-        );
-        ring.rotation.x = -Math.PI / 2;
-        group.add(ring);
-      }
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+          
+          originalY[i] = y;
+          sizes[i] = Math.random() * 2 + 1;
 
-      // a more articulated stylized human: head, mask, torso, hip joint, two arms w/ shoulder+hand,
-      // two legs. bendTorso lets us tilt someone forward as if supporting or leaning on another person.
-      function makeHuman({ x, z, rotY = 0, color = 0x34d399, bendTorso = 0, armL = null, armR = null, scale = 1 }) {
-        const fig = new THREE.Group();
-        const clothMat = holoMat(color);
+          // Mix colors based on position
+          const mix = (x / (countX * 0.4)) + 0.5;
+          const pointColor = color1.clone().lerp(color2, mix + (Math.random() - 0.5) * 0.2);
+          
+          colors[i * 3] = pointColor.r;
+          colors[i * 3 + 1] = pointColor.g;
+          colors[i * 3 + 2] = pointColor.b;
 
-        const hip = new THREE.Group();
-        hip.position.y = 0.55;
-        fig.add(hip);
-
-        const torsoGroup = new THREE.Group();
-        torsoGroup.rotation.x = bendTorso;
-        hip.add(torsoGroup);
-
-        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.75, seg), clothMat);
-        torso.position.y = 0.42;
-        torsoGroup.add(torso);
-
-        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 8), skinMat);
-        neck.position.y = 0.83;
-        torsoGroup.add(neck);
-
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, seg, seg), skinMat);
-        head.position.y = 0.98;
-        torsoGroup.add(head);
-
-        // mask: a small rounded box across the lower half of the face
-        const mask = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), maskMat);
-        mask.position.set(0, 0.94, 0.14);
-        mask.rotation.x = -0.25;
-        torsoGroup.add(mask);
-        const earStrapL = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.01, 6, 12, Math.PI), maskMat);
-        earStrapL.position.set(-0.13, 0.98, 0.02);
-        earStrapL.rotation.y = Math.PI / 2;
-        torsoGroup.add(earStrapL);
-
-        function makeArm({ raise = 0.3, forward = 0, sideways = 0, holdOut = false } = {}) {
-          const shoulder = new THREE.Group();
-          const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.32, 8), clothMat);
-          upper.position.y = -0.16;
-          shoulder.add(upper);
-
-          const elbow = new THREE.Group();
-          elbow.position.y = -0.32;
-          const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.3, 8), skinMat);
-          lower.position.y = -0.15;
-          elbow.add(lower);
-
-          const hand = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skinMat);
-          hand.position.y = -0.32;
-          elbow.add(hand);
-
-          if (holdOut) {
-            const heldMask = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), maskMat);
-            heldMask.position.y = -0.4;
-            elbow.add(heldMask);
-          }
-
-          shoulder.add(elbow);
-          shoulder.rotation.z = sideways;
-          shoulder.rotation.x = forward;
-          elbow.rotation.x = raise;
-          return shoulder;
+          i++;
         }
-
-        const armLeft = makeArm(armL || {});
-        armLeft.position.set(-0.24, 0.78, 0);
-        torsoGroup.add(armLeft);
-
-        const armRight = makeArm(armR || {});
-        armRight.position.set(0.24, 0.78, 0);
-        torsoGroup.add(armRight);
-
-        const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.55, 8), clothMat);
-        legL.position.set(-0.1, -0.28, 0);
-        const legR = legL.clone();
-        legR.position.x = 0.1;
-        hip.add(legL, legR);
-
-        fig.add(hip);
-        fig.position.set(x, 0, z);
-        fig.rotation.y = rotY;
-        fig.scale.setScalar(scale);
-        fig.userData.phase = Math.random() * Math.PI * 2;
-        return fig;
       }
 
-      // Figure A: struggling — leaning forward, one hand near chest
-      const figStruggling = makeHuman({
-        x: -0.55, z: 0.1, rotY: 0.3, color: 0x64748b, bendTorso: 0.35,
-        armL: { sideways: -0.6, forward: 0.4, raise: 0.9 },
-        armR: { sideways: 0.9, forward: 0.1, raise: 0.3 },
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+      // We use a custom shader material to get size attenuation and varied opacity easily
+      const material = new THREE.PointsMaterial({
+        size: 0.06,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
 
-      // Figure B: supporting them — arm around figure A's shoulder, upright
-      const figHelper = makeHuman({
-        x: 0.35, z: -0.15, rotY: -0.5, color: 0x34d399, bendTorso: 0.12,
-        armL: { sideways: -1.1, forward: 0.3, raise: 0.6 }, // reaching across to support
-        armR: { sideways: 0.3, forward: 0, raise: 0.2 },
-      });
+      const particles = new THREE.Points(geometry, material);
+      particles.position.y = -2.5;
+      scene.add(particles);
 
-      // Figure C: offering a spare mask outward
-      const figGiver = makeHuman({
-        x: 1.7, z: 0.9, rotY: -1.0, color: 0x38bdf8, bendTorso: 0,
-        armL: { sideways: -0.2, forward: 0, raise: 0.2 },
-        armR: { sideways: 1.0, forward: 0.5, raise: 0.4, holdOut: true },
-      });
-
-      group.add(figStruggling, figHelper, figGiver);
-
-      const sapling = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.35, 6), holoMat(0x22c55e, 0.7));
-      trunk.position.y = 0.18;
-      const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), holoMat(0x34d399, 0.65));
-      leaves.position.y = 0.42;
-      sapling.add(trunk, leaves);
-      sapling.position.set(-1.9, 0, -0.6);
-      group.add(sapling);
-
-      const figures = [figStruggling, figHelper, figGiver];
+      // Add a subtle glowing grid plane below
+      const gridHelper = new THREE.GridHelper(30, 60, 0x34d399, 0x1e293b);
+      gridHelper.position.y = -4;
+      gridHelper.material.transparent = true;
+      gridHelper.material.opacity = 0.15;
+      scene.add(gridHelper);
 
       function onResize() {
         const nw = mount.clientWidth, nh = mount.clientHeight;
@@ -489,26 +395,50 @@ function EcoHologram3D({ mouseRef, fine, isMobile }) {
       }
       window.addEventListener("resize", onResize);
 
+      let mouseX = 0;
+      let mouseY = 0;
+      let targetCameraX = 0;
+      let targetCameraY = 4;
+
       function animate(now) {
         if (disposed) return;
-        const t = now * 0.001;
+        const t = now * 0.0005;
 
         if (!reduceMotion) {
-          group.rotation.y = Math.sin(t * 0.08) * 0.16;
-
+          const positions = particles.geometry.attributes.position.array;
+          
           if (fine && !isMobile && mouseRef?.current?.x != null) {
-            const nx = mouseRef.current.x / window.innerWidth - 0.5;
-            const ny = mouseRef.current.y / window.innerHeight - 0.5;
-            camera.position.x += (nx * 1.4 - camera.position.x) * 0.03;
-            camera.position.y += (2.3 - ny * 0.8 - camera.position.y) * 0.03;
-            camera.lookAt(0, 1, 0);
+            mouseX = (mouseRef.current.x / window.innerWidth) * 2 - 1;
+            mouseY = -(mouseRef.current.y / window.innerHeight) * 2 + 1;
+            
+            targetCameraX = mouseX * 3;
+            targetCameraY = 4 + mouseY * 2;
           }
 
-          figures.forEach((f) => {
-            f.position.y = Math.sin(t * 0.9 + f.userData.phase) * 0.025; // gentle breathing bob
-          });
-          const growth = 0.85 + Math.sin(t * 0.7) * 0.15;
-          sapling.scale.setScalar(growth);
+          // Smooth camera parallax
+          camera.position.x += (targetCameraX - camera.position.x) * 0.03;
+          camera.position.y += (targetCameraY - camera.position.y) * 0.03;
+          camera.lookAt(0, -1, 0);
+          particles.rotation.y = t * 0.05;
+
+          // Wave animation
+          for(let i = 0; i < particleCount; i++) {
+            const ix = i * 3;
+            const x = positions[ix];
+            const z = positions[ix + 2];
+            
+            // Complex wave interference pattern
+            const wave1 = Math.sin(x * 0.5 + t);
+            const wave2 = Math.cos(z * 0.4 - t * 0.8);
+            const wave3 = Math.sin(Math.sqrt(x*x + z*z) * 0.3 - t * 1.2);
+            
+            // Calculate distance to origin for a subtle breathing effect
+            const dist = Math.sqrt(x*x + z*z);
+            const ripple = Math.sin(dist * 0.5 - t * 2) * 0.2;
+            
+            positions[ix + 1] = originalY[i] + (wave1 * wave2 + wave3) * 0.6 + ripple;
+          }
+          particles.geometry.attributes.position.needsUpdate = true;
         }
 
         renderer.render(scene, camera);
@@ -520,21 +450,23 @@ function EcoHologram3D({ mouseRef, fine, isMobile }) {
         disposed = true;
         cancelAnimationFrame(raf);
         window.removeEventListener("resize", onResize);
-        scene.traverse((obj) => {
-          if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) obj.material.dispose();
-        });
+        geometry.dispose();
+        material.dispose();
+        gridHelper.geometry.dispose();
+        gridHelper.material.dispose();
         renderer.dispose();
         if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       };
     } catch (e) {
-      console.warn("EcoHologram3D disabled:", e);
+      console.warn("DataConstellation3D disabled:", e);
       setFailed(true);
     }
   }, [mouseRef, fine, isMobile]);
 
   if (failed) return null;
-  return <div ref={mountRef} className="absolute inset-0 w-full h-full opacity-70" aria-hidden="true" />;
+  return (
+    <div ref={mountRef} className="absolute inset-0 w-full h-full opacity-60" style={{ mixBlendMode: 'screen' }} aria-hidden="true" />
+  );
 }
 
 export default function LandingPage({ onEnter }) {
@@ -578,7 +510,7 @@ export default function LandingPage({ onEnter }) {
         }
       `}</style>
 
-      <EcoHologram3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
+      <DataConstellation3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
 
       <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-emerald-500/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
