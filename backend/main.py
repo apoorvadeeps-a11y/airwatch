@@ -1683,6 +1683,9 @@ async def get_weather(lat: float, lng: float):
                 }
             )
         data = res.json()
+        if data.get("error"):
+            return {"error": data.get("reason", "Open-Meteo API error")}
+            
         current = data.get("current", {})
 
         # Map weather codes to descriptions
@@ -1697,6 +1700,11 @@ async def get_weather(lat: float, lng: float):
         }
 
         weather_code = current.get("weather_code", 0)
+        
+        # If current is empty, don't return null values
+        if not current:
+            return {"error": "Weather data unavailable"}
+            
         return {
             "temperature": current.get("temperature_2m"),
             "humidity": current.get("relative_humidity_2m"),
