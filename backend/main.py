@@ -1004,8 +1004,9 @@ IMPORTANT: Respond with ONLY the JSON. No markdown. No extra text."""
         # --- Send Thank You Email ---
         if email:
             print(f"\n[EMAIL SYSTEM] Queuing email to {email}")
-            # Dispatch immediately using asyncio to prevent Render dropping post-response BackgroundTasks
-            asyncio.create_task(asyncio.to_thread(send_thank_you_email, email, location, severity))
+            # Use FastAPI BackgroundTasks — the correct way on Render/production.
+            # asyncio.create_task was silently failing because it needs an active loop task context.
+            background_tasks.add_task(send_thank_you_email, email, location, severity)
 
         return {
             "success": True,

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
 
-const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal"];
+const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal", "Weather"];
 
 function resolveApiBase() {
   try {
@@ -33,7 +33,7 @@ function agentLog(location, message, data, hypothesisId) {
 
 const TRANSLATIONS = {
   en: {
-    title: "AirWatch", sub: "Neighbourhood Air Quality Tracker", describe: "Describe what you see", photo: "Attach a photo", location: "Location", submit: "Submit Report", dictate: "Dictate", listening: "Listening...", loading: "Analysing...", report: "Report", prediction: "Prediction", map: "Map", alerts: "Alerts", chat: "Chat", municipal: "Municipal",
+    title: "AirWatch", sub: "Neighbourhood Air Quality Tracker", describe: "Describe what you see", photo: "Attach a photo", location: "Location", submit: "Submit Report", dictate: "Dictate", listening: "Listening...", loading: "Analysing...", report: "Report", prediction: "Prediction", map: "Map", alerts: "Alerts", chat: "Chat", municipal: "Municipal", weather: "Weather",
     weatherContext: "Local Weather", humidity: "Humidity", wind: "Wind",
     mapTabShareLoc: "Share your location to see local air quality",
     mapTabDetecting: "Detecting...", mapTabDetect: "Detect My Location",
@@ -58,7 +58,7 @@ const TRANSLATIONS = {
     mapTabYourLoc: "Your location"
   },
   hi: {
-    title: "AirWatch", sub: "पड़ोस की वायु गुणवत्ता ट्रैकर", describe: "आप जो देखते हैं उसका वर्णन करें", photo: "एक फोटो संलग्न करें", location: "स्थान", submit: "रिपोर्ट जमा करें", dictate: "बोलें", listening: "सुन रहा हूँ...", loading: "विश्लेषण कर रहा है...", report: "रिपोर्ट", prediction: "भविष्यवाणी", map: "नक्शा", alerts: "चेतावनी", chat: "चैट", municipal: "नगर पालिका",
+    title: "AirWatch", sub: "पड़ोस की वायु गुणवत्ता ट्रैकर", describe: "आप जो देखते हैं उसका वर्णन करें", photo: "एक फोटो संलग्न करें", location: "स्थान", submit: "रिपोर्ट जमा करें", dictate: "बोलें", listening: "सुन रहा हूँ...", loading: "विश्लेषण कर रहा है...", report: "रिपोर्ट", prediction: "भविष्यवाणी", map: "नक्शा", alerts: "चेतावनी", chat: "चैट", municipal: "नगर पालिका", weather: "मौसम",
     weatherContext: "स्थानीय मौसम", humidity: "नमी", wind: "हवा",
     mapTabShareLoc: "स्थानीय वायु गुणवत्ता देखने के लिए अपना स्थान साझा करें",
     mapTabDetecting: "पता लगाया जा रहा है...", mapTabDetect: "मेरा स्थान जांचें",
@@ -83,7 +83,7 @@ const TRANSLATIONS = {
     mapTabYourLoc: "आपका स्थान"
   },
   te: {
-    title: "AirWatch", sub: "పరిసర వాయు నాణ్యత ట్రాకర్", describe: "మీరు ఏమి చూస్తున్నారో వివరించండి", photo: "ఫోటోను జత చేయండి", location: "స్థానం", submit: "నివేదిక సమర్పించండి", dictate: "మాట్లాడండి", listening: "వింటుంది...", loading: "విశ్లేషిస్తోంది...", report: "నివేదిక", prediction: "అంచనా", map: "మ్యాప్", alerts: "హెచ్చరికలు", chat: "చాట్", municipal: "మున్సిపల్",
+    title: "AirWatch", sub: "పరిసర వాయు నాణ్యత ట్రాకర్", describe: "మీరు ఏమి చూస్తున్నారో వివరించండి", photo: "ఫోటోను జత చేయండి", location: "స్థానం", submit: "నివేదిక సమర్పించండి", dictate: "మాట్లాడండి", listening: "వింటుంది...", loading: "విశ్లేషిస్తోంది...", report: "నివేదిక", prediction: "అంచనా", map: "మ్యాప్", alerts: "హెచ్చరికలు", chat: "చాట్", municipal: "మున్సిపల్", weather: "వాతావరణం",
     weatherContext: "స్థానిక వాతావరణం", humidity: "తేమ", wind: "గాలి",
     mapTabShareLoc: "స్థానిక గాలి నాణ్యతను చూడటానికి మీ స్థానాన్ని పంచుకోండి",
     mapTabDetecting: "గుర్తిస్తోంది...", mapTabDetect: "నా స్థానాన్ని గుర్తించండి",
@@ -108,7 +108,7 @@ const TRANSLATIONS = {
     mapTabYourLoc: "మీ స్థానం"
   },
   ta: {
-    title: "AirWatch", sub: "அக்கம் பக்க காற்று தரக் கண்காணிப்பாளர்", describe: "நீங்கள் பார்ப்பதை விவரிக்கவும்", photo: "புகைப்படத்தை இணைக்கவும்", location: "இடம்", submit: "அறிக்கையைச் சமர்ப்பிக்கவும்", dictate: "பேசுங்கள்", listening: "கேட்கிறது...", loading: "பகுப்பாய்வு செய்கிறது...", report: "அறிக்கை", prediction: "கணிப்பு", map: "வரைபடம்", alerts: "எச்சரிக்கைகள்", chat: "அரட்டை", municipal: "நகராட்சி",
+    title: "AirWatch", sub: "அக்கம் பக்க காற்று தரக் கண்காணிப்பாளர்", describe: "நீங்கள் பார்ப்பதை விவரிக்கவும்", photo: "புகைப்படத்தை இணைக்கவும்", location: "இடம்", submit: "அறிக்கையைச் சமர்ப்பிக்கவும்", dictate: "பேசுங்கள்", listening: "கேட்கிறது...", loading: "பகுப்பாய்வு செய்கிறது...", report: "அறிக்கை", prediction: "கணிப்பு", map: "வரைபடம்", alerts: "எச்சரிக்கைகள்", chat: "அரட்டை", municipal: "நகராட்சி", weather: "வானிலை",
     weatherContext: "உள்ளூர் வானிலை", humidity: "ஈரப்பதம்", wind: "காற்றின் வேகம்",
     mapTabShareLoc: "உள்ளூர் காற்றின் தரத்தைக் காண உங்கள் இருப்பிடத்தைப் பகிரவும்",
     mapTabDetecting: "கண்டறிகிறது...", mapTabDetect: "என் இருப்பிடத்தைக் கண்டறி",
@@ -133,7 +133,7 @@ const TRANSLATIONS = {
     mapTabYourLoc: "உங்கள் இருப்பிடம்"
   },
   bn: {
-    title: "AirWatch", sub: "আশেপাশের বায়ুর মান ট্র্যাকার", describe: "আপনি যা দেখছেন তা বর্ণনা করুন", photo: "একটি ছবি সংযুক্ত করুন", location: "অবস্থান", submit: "রিপোর্ট জমা দিন", dictate: "বলুন", listening: "শুনছি...", loading: "বিশ্লেষণ করছে...", report: "রিপোর্ট", prediction: "ভবিষ্যদ্বাণী", map: "মানচিত্র", alerts: "সতর্কতা", chat: "চ্যাট", municipal: "পৌরসভা",
+    title: "AirWatch", sub: "আশেপাশের বায়ুর মান ট্র্যাকার", describe: "আপনি যা দেখছেন তা বর্ণনা করুন", photo: "একটি ছবি সংযুক্ত করুন", location: "অবস্থান", submit: "রিপোর্ট জমা দিন", dictate: "বলুন", listening: "শুনছি...", loading: "বিশ্লেষণ করছে...", report: "রিপোর্ট", prediction: "ভবিষ্যদ্বাণী", map: "মানচিত্র", alerts: "সতর্কতা", chat: "চ্যাট", municipal: "পৌরসভা", weather: "আবহাওয়া",
     weatherContext: "স্থানীয় আবহাওয়া", humidity: "আর্দ্রতা", wind: "বাতাস",
     mapTabShareLoc: "স্থানীয় বায়ুর মান দেখতে আপনার অবস্থান শেয়ার করুন",
     mapTabDetecting: "সনাক্ত করছে...", mapTabDetect: "আমার অবস্থান সনাক্ত করুন",
@@ -1055,9 +1055,343 @@ function MunicipalTab({ userLat, userLng, t }) {
   );
 }
 
-// AuthScreen removed as requested
+// ── WeatherTab ──────────────────────────────────────────────────────────────
+function WeatherTab({ userLat, userLng }) {
+  const [weather, setWeather] = useState(null);
+  const [hourly, setHourly] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!userLat || !userLng) return;
+    setLoading(true);
+    setError(null);
+    // Fetch current + hourly from Open-Meteo directly
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${userLat}&longitude=${userLng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,apparent_temperature,precipitation,surface_pressure,uv_index&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,precipitation_probability&forecast_days=1&timezone=auto`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.reason || 'Weather unavailable');
+        setWeather(data.current || {});
+        // Take next 12 hours of hourly data
+        const times = (data.hourly?.time || []).slice(0, 24);
+        const now = new Date();
+        const idx = times.findIndex(t => new Date(t) >= now);
+        const start = idx >= 0 ? idx : 0;
+        const hours = times.slice(start, start + 12).map((t, i) => ({
+          time: t,
+          temp: data.hourly.temperature_2m?.[start + i],
+          humidity: data.hourly.relative_humidity_2m?.[start + i],
+          wind: data.hourly.wind_speed_10m?.[start + i],
+          code: data.hourly.weather_code?.[start + i],
+          rainChance: data.hourly.precipitation_probability?.[start + i],
+        }));
+        setHourly(hours);
+        setLoading(false);
+      })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [userLat, userLng]);
+
+  const wmoIcon = (code) => {
+    if (code === 0) return '☀️';
+    if (code <= 2) return '🌤️';
+    if (code <= 3) return '☁️';
+    if (code <= 48) return '🌫️';
+    if (code <= 55) return '🌦️';
+    if (code <= 65) return '🌧️';
+    if (code <= 75) return '❄️';
+    if (code <= 82) return '🌧️';
+    if (code <= 99) return '⛈️';
+    return '🌡️';
+  };
+  const wmoLabel = (code) => {
+    if (code === 0) return 'Clear sky'; if (code <= 2) return 'Partly cloudy';
+    if (code <= 3) return 'Overcast'; if (code <= 48) return 'Foggy';
+    if (code <= 55) return 'Drizzle'; if (code <= 65) return 'Rain';
+    if (code <= 75) return 'Snow'; if (code <= 82) return 'Rain showers';
+    if (code <= 99) return 'Thunderstorm'; return 'Unknown';
+  };
+  const windDir = (deg) => {
+    const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+    return dirs[Math.round(deg / 45) % 8] || '—';
+  };
+  const uvLevel = (uv) => {
+    if (uv <= 2) return { label: 'Low', color: '#00e400' };
+    if (uv <= 5) return { label: 'Moderate', color: '#ffff00' };
+    if (uv <= 7) return { label: 'High', color: '#ff7e00' };
+    if (uv <= 10) return { label: 'Very High', color: '#ff0000' };
+    return { label: 'Extreme', color: '#8f3f97' };
+  };
+
+  if (!userLat || !userLng) return (
+    <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center space-y-3">
+      <p className="text-4xl">🌤️</p>
+      <p className="text-white font-medium">Location Required</p>
+      <p className="text-xs text-gray-400">Please detect your location in the Report tab first to view local weather.</p>
+    </div>
+  );
+
+  if (loading) return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center flex flex-col items-center gap-3">
+      <Cloud className="w-8 h-8 text-blue-400 animate-pulse" />
+      <p className="text-gray-400 text-sm animate-pulse">Loading weather data...</p>
+    </div>
+  );
+
+  if (error || !weather) return (
+    <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6 text-center space-y-2">
+      <AlertTriangle className="w-6 h-6 text-red-500 mx-auto" />
+      <p className="text-red-400 text-sm">{error || 'Weather data unavailable'}</p>
+    </div>
+  );
+
+  const uv = uvLevel(weather.uv_index ?? 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Main weather card */}
+      <div className="bg-gradient-to-br from-blue-950/60 to-gray-900 border border-blue-800/40 rounded-2xl p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-blue-300 uppercase tracking-widest font-semibold mb-1">Local Weather</p>
+            <p className="text-6xl mb-2">{wmoIcon(weather.weather_code)}</p>
+            <p className="text-4xl font-bold text-white">{weather.temperature_2m ?? '—'}°C</p>
+            <p className="text-blue-300 text-sm mt-1">Feels like {weather.apparent_temperature ?? '—'}°C</p>
+            <p className="text-gray-300 font-medium mt-1">{wmoLabel(weather.weather_code)}</p>
+          </div>
+          <div className="text-right space-y-3">
+            <div className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-2 text-right">
+              <p className="text-xs text-gray-400 flex items-center justify-end gap-1"><Cloud className="w-3 h-3" /> Humidity</p>
+              <p className="text-white font-bold text-lg">{weather.relative_humidity_2m ?? '—'}%</p>
+            </div>
+            <div className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-2 text-right">
+              <p className="text-xs text-gray-400 flex items-center justify-end gap-1"><Wind className="w-3 h-3" /> Wind</p>
+              <p className="text-white font-bold text-lg">{weather.wind_speed_10m ?? '—'} km/h</p>
+              <p className="text-xs text-gray-500">{windDir(weather.wind_direction_10m)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Extra stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-xs text-gray-400 mb-1">Pressure</p>
+          <p className="text-white font-bold">{weather.surface_pressure ? Math.round(weather.surface_pressure) : '—'}</p>
+          <p className="text-xs text-gray-500">hPa</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-xs text-gray-400 mb-1">Rain</p>
+          <p className="text-white font-bold">{weather.precipitation ?? '—'}</p>
+          <p className="text-xs text-gray-500">mm</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-xs text-gray-400 mb-1">UV Index</p>
+          <p className="font-bold text-lg" style={{ color: uv.color }}>{weather.uv_index ?? '—'}</p>
+          <p className="text-xs" style={{ color: uv.color }}>{uv.label}</p>
+        </div>
+      </div>
+
+      {/* 12-hour forecast */}
+      {hourly.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-3">12-Hour Forecast</p>
+          <div className="overflow-x-auto">
+            <div className="flex gap-3 min-w-max pb-1">
+              {hourly.map((h, i) => {
+                const timeStr = new Date(h.time).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: true });
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1.5 bg-gray-800/60 border border-gray-700 rounded-xl px-3 py-2.5 min-w-[68px]">
+                    <p className="text-xs text-gray-400">{timeStr}</p>
+                    <span className="text-xl">{wmoIcon(h.code)}</span>
+                    <p className="text-sm font-bold text-white">{h.temp !== undefined ? Math.round(h.temp) : '—'}°</p>
+                    {h.rainChance > 0 && <p className="text-xs text-blue-400">💧{h.rainChance}%</p>}
+                    <p className="text-xs text-gray-500">{h.wind !== undefined ? Math.round(h.wind) : '—'}km/h</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Air quality + weather relationship note */}
+      <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-3 flex items-start gap-2 text-xs text-gray-400">
+        <Info className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+        <span>Weather affects air quality: High humidity traps pollutants near ground. Wind disperses them. Rain washes particulate matter away. Check the Prediction tab for AQI forecast.</span>
+      </div>
+    </div>
+  );
+}
+
+// ── AuthScreen ───────────────────────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState('signin');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  function getUsers() {
+    try { return JSON.parse(localStorage.getItem('airwatch_users') || '[]'); } catch { return []; }
+  }
+  function saveUsers(users) {
+    localStorage.setItem('airwatch_users', JSON.stringify(users));
+  }
+
+  function handleSignIn(e) {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    setTimeout(() => {
+      const users = getUsers();
+      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (!user) { setError('Incorrect email or password. New here? Create an account below!'); setLoading(false); return; }
+      const session = { email: user.email, name: user.name };
+      localStorage.setItem('airwatch_session', JSON.stringify(session));
+      localStorage.setItem('airwatch_email', user.email);
+      onAuth(session);
+      setLoading(false);
+    }, 400);
+  }
+
+  function handleSignUp(e) {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    setTimeout(() => {
+      if (!name.trim()) { setError('Please enter your full name.'); setLoading(false); return; }
+      if (!email.includes('@') || !email.includes('.')) { setError('Please enter a valid email address.'); setLoading(false); return; }
+      if (password.length < 6) { setError('Password must be at least 6 characters.'); setLoading(false); return; }
+      const users = getUsers();
+      if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+        setError('An account with this email already exists. Sign in instead!');
+        setLoading(false); return;
+      }
+      const newUser = { email, password, name };
+      users.push(newUser);
+      saveUsers(users);
+      const session = { email, name };
+      localStorage.setItem('airwatch_session', JSON.stringify(session));
+      localStorage.setItem('airwatch_email', email);
+      setSuccess(`Welcome, ${name}! Your account has been created.`);
+      setTimeout(() => onAuth(session), 800);
+      setLoading(false);
+    }, 400);
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-blue-500/8 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">🌿 AirWatch</h1>
+          <p className="text-gray-400 text-sm mt-1">Neighbourhood Air Quality Tracker</p>
+        </div>
+
+        <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop-blur-sm">
+          {/* Mode toggle */}
+          <div className="flex bg-gray-800 rounded-xl p-1 mb-6">
+            <button
+              onClick={() => { setMode('signin'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'signin' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+            >Sign In</button>
+            <button
+              onClick={() => { setMode('signup'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'signup' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+            >Create Account</button>
+          </div>
+
+          <form onSubmit={mode === 'signin' ? handleSignIn : handleSignUp} className="space-y-4">
+            {mode === 'signup' && (
+              <div>
+                <label className="text-xs text-gray-400 font-medium block mb-1">Full Name</label>
+                <input
+                  type="text" value={name} onChange={e => setName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                  required
+                />
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-gray-400 font-medium block mb-1">Email Address</label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 font-medium block mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
+                  className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                  required
+                />
+                <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs px-1">
+                  {showPwd ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-xs text-red-300 flex items-start gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />{error}
+              </div>
+            )}
+            {success && (
+              <div className="bg-emerald-950/60 border border-emerald-800 rounded-xl px-4 py-3 text-xs text-emerald-300 flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />{success}
+              </div>
+            )}
+
+            <button
+              type="submit" disabled={loading}
+              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/30 text-sm"
+            >
+              {loading ? (mode === 'signin' ? 'Signing in...' : 'Creating account...') : (mode === 'signin' ? 'Sign In' : 'Create Account')}
+            </button>
+          </form>
+
+          {mode === 'signin' && (
+            <p className="text-center text-xs text-gray-500 mt-4">
+              No account?{' '}
+              <button onClick={() => { setMode('signup'); setError(''); }} className="text-emerald-400 hover:underline">Create one free</button>
+            </p>
+          )}
+          {mode === 'signup' && (
+            <p className="text-center text-xs text-gray-500 mt-4">
+              Already have an account?{' '}
+              <button onClick={() => { setMode('signin'); setError(''); }} className="text-emerald-400 hover:underline">Sign in</button>
+            </p>
+          )}
+        </div>
+
+        <p className="text-center text-xs text-gray-600 mt-4">Your credentials are saved securely on this device.</p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
+  // Auth: restore session from localStorage on first mount
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const s = localStorage.getItem('airwatch_session');
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
+  });
+
   const [userEmail, setUserEmail] = useState(() => {
     try {
       return localStorage.getItem('airwatch_email') || "";
@@ -1407,6 +1741,11 @@ export default function App() {
   const severity = result?.analysis?.severity;
   const severityStyle = SEVERITY_COLORS[severity] || SEVERITY_COLORS[3];
 
+  // Auth guard — placed after all hooks so Rules of Hooks are satisfied
+  if (!currentUser) {
+    return <AuthScreen onAuth={(session) => { setCurrentUser(session); setUserEmail(session.email); }} />;
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans relative">
       <header className="border-b border-[var(--border-subtle)] px-6 py-4 flex items-center justify-between glass-card rounded-none sticky top-0 z-50">
@@ -1442,6 +1781,16 @@ export default function App() {
               </div>
             </div>
           )}
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:block text-xs text-gray-400">👋 {currentUser.name || currentUser.email}</span>
+            <button
+              onClick={() => {
+                localStorage.removeItem('airwatch_session');
+                setCurrentUser(null);
+              }}
+              className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition-colors"
+            >Sign Out</button>
+          </div>
         </div>
       </header>
 
@@ -1458,7 +1807,8 @@ export default function App() {
                 tName === 'Alerts' ? t.alerts || tName :
                   tName === 'Chat' ? t.chat || tName :
                     tName === 'Municipal' ? t.municipal || tName :
-                      tName === 'Prediction' ? t.prediction || tName : tName}
+                      tName === 'Prediction' ? t.prediction || tName :
+                        tName === 'Weather' ? t.weather || tName : tName}
           </button>
         ))}
       </nav>
@@ -1710,6 +2060,7 @@ export default function App() {
         {tab === "Alerts" && <AlertsTab userLat={userLat} userLng={userLng} t={t} />}
         {tab === "Chat" && <ChatTab userLat={userLat} userLng={userLng} lang={lang} t={t} />}
         {tab === "Municipal" && <MunicipalTab userLat={userLat} userLng={userLng} t={t} />}
+        {tab === "Weather" && <WeatherTab userLat={userLat} userLng={userLng} />}
 
       </main>
     </div>
