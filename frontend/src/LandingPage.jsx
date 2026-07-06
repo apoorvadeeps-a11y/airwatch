@@ -23,13 +23,13 @@ import * as THREE from "three";
  * - The 3D layer fails silently if WebGL is unavailable — the rest of the page still works.
  */
 
-function useFinePointer() {
+export function useFinePointer() {
   const [fine, setFine] = useState(false);
   useEffect(() => setFine(window.matchMedia("(pointer: fine)").matches), []);
   return fine;
 }
 
-function useIsMobile() {
+export function useIsMobile() {
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
     const check = () => setMobile(window.innerWidth < 768);
@@ -294,7 +294,7 @@ function TiltCard({ icon: Icon, label, fine }) {
 // Replaces the humanoid scene with a highly professional, abstract sensor network.
 // A flowing terrain of glowing nodes that gently react to cursor movement,
 // conveying "vast amounts of data points forming a clear picture".
-function DataConstellation3D({ mouseRef, fine, isMobile }) {
+export function DataConstellation3D({ mouseRef, fine, isMobile }) {
   const mountRef = useRef(null);
   const [failed, setFailed] = useState(false);
 
@@ -326,7 +326,7 @@ function DataConstellation3D({ mouseRef, fine, isMobile }) {
       const countX = isMobile ? 35 : 65;
       const countZ = isMobile ? 35 : 65;
       const particleCount = countX * countZ;
-      
+
       const geometry = new THREE.BufferGeometry();
       const positions = new Float32Array(particleCount * 3);
       const originalY = new Float32Array(particleCount);
@@ -346,14 +346,14 @@ function DataConstellation3D({ mouseRef, fine, isMobile }) {
           positions[i * 3] = x;
           positions[i * 3 + 1] = y;
           positions[i * 3 + 2] = z;
-          
+
           originalY[i] = y;
           sizes[i] = Math.random() * 2 + 1;
 
           // Mix colors based on position
           const mix = (x / (countX * 0.4)) + 0.5;
           const pointColor = color1.clone().lerp(color2, mix + (Math.random() - 0.5) * 0.2);
-          
+
           colors[i * 3] = pointColor.r;
           colors[i * 3 + 1] = pointColor.g;
           colors[i * 3 + 2] = pointColor.b;
@@ -406,11 +406,11 @@ function DataConstellation3D({ mouseRef, fine, isMobile }) {
 
         if (!reduceMotion) {
           const positions = particles.geometry.attributes.position.array;
-          
+
           if (fine && !isMobile && mouseRef?.current?.x != null) {
             mouseX = (mouseRef.current.x / window.innerWidth) * 2 - 1;
             mouseY = -(mouseRef.current.y / window.innerHeight) * 2 + 1;
-            
+
             targetCameraX = mouseX * 3;
             targetCameraY = 4 + mouseY * 2;
           }
@@ -422,20 +422,20 @@ function DataConstellation3D({ mouseRef, fine, isMobile }) {
           particles.rotation.y = t * 0.05;
 
           // Wave animation
-          for(let i = 0; i < particleCount; i++) {
+          for (let i = 0; i < particleCount; i++) {
             const ix = i * 3;
             const x = positions[ix];
             const z = positions[ix + 2];
-            
+
             // Complex wave interference pattern
             const wave1 = Math.sin(x * 0.5 + t);
             const wave2 = Math.cos(z * 0.4 - t * 0.8);
-            const wave3 = Math.sin(Math.sqrt(x*x + z*z) * 0.3 - t * 1.2);
-            
+            const wave3 = Math.sin(Math.sqrt(x * x + z * z) * 0.3 - t * 1.2);
+
             // Calculate distance to origin for a subtle breathing effect
-            const dist = Math.sqrt(x*x + z*z);
+            const dist = Math.sqrt(x * x + z * z);
             const ripple = Math.sin(dist * 0.5 - t * 2) * 0.2;
-            
+
             positions[ix + 1] = originalY[i] + (wave1 * wave2 + wave3) * 0.6 + ripple;
           }
           particles.geometry.attributes.position.needsUpdate = true;
@@ -469,10 +469,7 @@ function DataConstellation3D({ mouseRef, fine, isMobile }) {
   );
 }
 
-export default function LandingPage({ onEnter }) {
-  const mouseRef = useRef({ x: null, y: null });
-  const fine = useFinePointer();
-  const isMobile = useIsMobile();
+export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
   const heroRef = useRef(null);
   const badgeRef = useRef(null);
 
@@ -495,7 +492,7 @@ export default function LandingPage({ onEnter }) {
 
   return (
     <div
-      className="relative min-h-screen w-full bg-gray-950 text-white overflow-hidden cursor-default"
+      className="relative min-h-screen w-full bg-transparent text-white overflow-hidden cursor-default"
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <style>{`
@@ -510,7 +507,7 @@ export default function LandingPage({ onEnter }) {
         }
       `}</style>
 
-      <DataConstellation3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
+      {/* DataConstellation3D is now rendered at the App level */}
 
       <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-emerald-500/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />

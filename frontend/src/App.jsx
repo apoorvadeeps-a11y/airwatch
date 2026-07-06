@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Cloud, Thermometer, Wind, Volume2, Globe, Send, AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Calendar, MapPin, Activity, Camera, Leaf, Shield, CheckCircle, Zap, Factory } from "lucide-react";
-import LandingPage from "./LandingPage";
+import LandingPage, { DataConstellation3D, useFinePointer, useIsMobile } from "./LandingPage";
 
 const TABS = ["Report", "Prediction", "Map", "Alerts", "Chat", "Municipal", "Weather"];
 
@@ -1748,7 +1748,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans relative">
+    <div className="min-h-screen bg-transparent text-[var(--text-primary)] font-sans relative">
       <header className="border-b border-[var(--border-subtle)] px-6 py-4 flex items-center justify-between glass-card rounded-none sticky top-0 z-50">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">🌿 {t.title}</h1>
@@ -1795,7 +1795,7 @@ function MainApp() {
         </div>
       </header>
 
-      <nav className="flex border-b border-[var(--border-subtle)] px-6 bg-[var(--bg-secondary)] overflow-x-auto scrollbar-hide">
+      <nav className="flex border-b border-[var(--border-subtle)] px-6 bg-transparent overflow-x-auto scrollbar-hide">
         {TABS.map((tName) => (
           <button
             key={tName}
@@ -2070,5 +2070,41 @@ function MainApp() {
 
 export default function App() {
   const [entered, setEntered] = useState(false);
-  return entered ? <MainApp /> : <LandingPage onEnter={() => setEntered(true)} />;
+  const mouseRef = useRef({ x: null, y: null });
+  const fine = useFinePointer();
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    function onMove(e) {
+      mouseRef.current.x = e.clientX;
+      mouseRef.current.y = e.clientY;
+    }
+    function onLeave() {
+      mouseRef.current.x = null;
+      mouseRef.current.y = null;
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  return (
+    <div className="relative min-h-screen w-full bg-gray-950 overflow-x-hidden">
+      {/* Global 3D Wave background that persists across all tabs */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <DataConstellation3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
+      </div>
+
+      <div className="relative z-10">
+        {entered ? (
+          <MainApp />
+        ) : (
+          <LandingPage onEnter={() => setEntered(true)} mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
+        )}
+      </div>
+    </div>
+  );
 }
