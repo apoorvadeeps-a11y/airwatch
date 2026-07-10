@@ -104,7 +104,7 @@ function BlobMaskBackground({ mouseRef }) {
       lastY = mouseY;
 
       const isMobileSize = window.innerWidth < 768;
-      const baseRadius = isMobileSize ? 90 : 160;
+      const baseRadius = isMobileSize ? 110 : 160;
       const wobble = Math.sin(time * 3) * 8;
       const dynamicRadius = baseRadius + speed * 0.4 + wobble;
 
@@ -186,31 +186,28 @@ function BlobMaskBackground({ mouseRef }) {
   return (
     <div 
       ref={containerRef}
-      className="absolute w-[85vw] h-[50vh] max-w-[380px] max-h-[480px] md:w-full md:h-full md:max-w-none md:max-h-none rounded-2xl md:rounded-none overflow-hidden border border-gray-800/80 md:border-none shadow-2xl md:shadow-none top-[43%] md:top-0 left-1/2 md:left-0 -translate-x-1/2 md:translate-x-0 -translate-y-1/2 md:translate-y-0 z-0"
+      className="absolute inset-0 w-full h-full overflow-hidden z-0"
     >
       <style>{`
         .reveal-container { clip-path: url(#blob-mask); }
       `}</style>
       
-      {/* Dark navy background — matches the app's deep blue colour scheme */}
-      <div className="absolute inset-0 z-0" style={{ backgroundColor: '#060e1d' }} />
-
-      {/* Base Layer: grayscale man — luminosity blend makes grey photo bg adopt the dark navy hue */}
+      {/* Base Layer: grayscale man — clean white/grey background look */}
       <div className="absolute inset-0 z-0">
         <img
           src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/a985c5f1-0f13-4cee-b02e-104026005870/1783665424315-b1894727/Gemini_Generated_Image_m5sxj0m5sxj0m5sx.png"
-          className="w-full h-full object-cover"
-          style={{ filter: 'grayscale(100%) brightness(0.55)', mixBlendMode: 'luminosity', opacity: 0.85 }}
+          className="w-full h-full object-cover object-center"
+          style={{ filter: 'grayscale(100%) brightness(0.78) contrast(1.05)', opacity: 0.92 }}
           alt="Base Image"
         />
       </div>
 
       {/* Reveal Layer: full-color man, clipped to blob cursor shape */}
-      <div className="reveal-container absolute inset-0 z-0 pointer-events-none" style={{ backgroundColor: '#060e1d' }}>
+      <div className="reveal-container absolute inset-0 z-0 pointer-events-none">
         <img
           src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/a985c5f1-0f13-4cee-b02e-104026005870/1783665428843-5ae19fa9/Gemini_Generated_Image_s79aous79aous79a.png"
-          className="w-full h-full object-cover"
-          style={{ opacity: 0.95 }}
+          className="w-full h-full object-cover object-center"
+          style={{ opacity: 1 }}
           alt="Reveal Image"
         />
       </div>
@@ -233,7 +230,7 @@ function BlobMaskBackground({ mouseRef }) {
       {/* Visual Blob Cursor */}
       <div
         ref={cursorVisualRef}
-        className="absolute top-0 left-0 w-[320px] h-[320px] -ml-[160px] -mt-[160px] rounded-full border border-white/30 pointer-events-none z-10 mix-blend-difference hidden md:block"
+        className="fixed top-0 left-0 w-[320px] h-[320px] -ml-[160px] -mt-[160px] rounded-full border border-white/30 pointer-events-none z-10 mix-blend-difference hidden md:block"
       ></div>
     </div>
   );
@@ -506,7 +503,7 @@ export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
   return (
     <div
       className="relative min-h-screen w-full text-white overflow-hidden"
-      style={{ backgroundColor: '#060e1d', paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <style>{`
         @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
@@ -568,9 +565,6 @@ export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
             </p>
 
             <MagneticButton onEnter={onEnter} fine={fine} />
-            <p className="mt-4 text-[11px] text-gray-400 drop-shadow-md">
-              {isMobile ? "Touch and drag to reveal the man behind the pollution." : "Move your cursor to reveal the man behind the pollution."}
-            </p>
           </div>
         </main>
 
