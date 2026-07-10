@@ -41,188 +41,182 @@ export function useIsMobile() {
 }
 
 // ---------- foreground: swirling haze -> clean ring, reacts to cursor drag or finger drag ----------
-function ParticleField({ mouseRef, isMobile }) {
-  const canvasRef = useRef(null);
+function BlobMaskBackground({ mouseRef }) {
+  const mainBlobRef = useRef(null);
+  const trailContainerRef = useRef(null);
+  const cursorVisualRef = useRef(null);
+  const requestRef = useRef(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mainBlob = mainBlobRef.current;
+    const trailContainer = trailContainerRef.current;
+    const cursorVisual = cursorVisualRef.current;
 
-    let dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
-    let w, h, cx, cy, ringR;
+    let currentX = window.innerWidth / 2;
+    let currentY = window.innerHeight / 2;
+    let lastX = currentX;
+    let lastY = currentY;
+    let time = 0;
+    let speed = 0;
 
-    const COUNT = isMobile ? 70 : 140;
-    const particles = [];
+    const trails = [];
+    const trailCount = 15;
 
-    function resize() {
-      w = canvas.clientWidth;
-      h = canvas.clientHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cx = w * 0.5;
-      cy = h * 0.46;
-      ringR = Math.min(w, h) * (isMobile ? 0.32 : 0.26);
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    const hazeColors = ["#f59e0b", "#ef4444", "#f97316", "#eab308"];
-    const cleanColors = ["#34d399", "#22d3ee", "#10b981", "#38bdf8"];
-
-    for (let i = 0; i < COUNT; i++) {
-      const angle = (i / COUNT) * Math.PI * 2;
-      const jitterR = ringR + (Math.random() - 0.5) * 14;
-      particles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        size: 1.4 + Math.random() * 2.2,
-        angle,
-        jitterR,
-        speed: 0.15 + Math.random() * 0.15,
-        phase: Math.random() * Math.PI * 2,
-        color: hazeColors[i % hazeColors.length],
-        targetColor: cleanColors[i % cleanColors.length],
-        glow: 0,
-      });
+    if (trailContainer) {
+      trailContainer.innerHTML = '';
+      for (let i = 0; i < trailCount; i++) {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("r", "0");
+        c.setAttribute("fill", "black");
+        trailContainer.appendChild(c);
+        trails.push({ el: c, x: 0, y: 0, r: 0, active: false, life: 0 });
+      }
     }
 
-    let rotation = 0;
-    let t0 = performance.now();
-    let convergeStart = null;
-    const CONVERGE_MS = 2400;
-    const REPEL_RADIUS = isMobile ? 150 : 190;
-    let raf;
+    function animate() {
+      time += 0.015;
 
-    function lerp(a, b, n) { return a + (b - a) * n; }
-    function hexLerp(hexA, hexB, n) {
-      const a = parseInt(hexA.slice(1), 16), b = parseInt(hexB.slice(1), 16);
-      const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
-      const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
-      return `rgb(${Math.round(lerp(ar, br, n))},${Math.round(lerp(ag, bg, n))},${Math.round(lerp(ab, bb, n))})`;
-    }
+      let mouseX = mouseRef.current.x ?? window.innerWidth / 2;
+      let mouseY = mouseRef.current.y ?? window.innerHeight / 2;
 
-    function frame(now) {
-      const dt = now - t0;
-      t0 = now;
-      if (convergeStart === null) convergeStart = now;
-      const elapsed = now - convergeStart;
-      const progress = reduceMotion ? 1 : Math.min(1, elapsed / CONVERGE_MS);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      currentX += (mouseX - currentX) * 0.12;
+      currentY += (mouseY - currentY) * 0.12;
 
-      rotation += dt * 0.00012;
-      const pulse = Math.sin(now * 0.0016) * 6;
-      const mouse = mouseRef.current;
+      const dx = mouseX - lastX;
+      const dy = mouseY - lastY;
+      speed = Math.sqrt(dx * dx + dy * dy);
+      lastX = mouseX;
+      lastY = mouseY;
 
-      ctx.clearRect(0, 0, w, h);
+      const baseRadius = 160;
+      const wobble = Math.sin(time * 3) * 8;
+      const dynamicRadius = baseRadius + speed * 0.4 + wobble;
 
-      for (const p of particles) {
-        const targetX = cx + Math.cos(p.angle + rotation) * (p.jitterR + pulse);
-        const targetY = cy + Math.sin(p.angle + rotation) * (p.jitterR + pulse) * 0.72;
+      if (mainBlob) {
+        mainBlob.setAttribute("cx", currentX);
+        mainBlob.setAttribute("cy", currentY);
+        mainBlob.setAttribute("r", dynamicRadius);
+      }
 
-        if (progress < 1) {
-          p.x = lerp(p.x, targetX, 0.04 + eased * 0.02);
-          p.y = lerp(p.y, targetY, 0.04 + eased * 0.02);
-        } else {
-          const wob = Math.sin(now * 0.002 * p.speed + p.phase) * 2.2;
-          p.x = lerp(p.x, targetX + wob, 0.08);
-          p.y = lerp(p.y, targetY + wob * 0.6, 0.08);
+      if (cursorVisual) {
+        cursorVisual.style.transform = `translate(${currentX}px, ${currentY}px) scale(${1 + speed * 0.003})`;
+      }
+
+      trails.forEach((t) => {
+        if (speed > 8 && !t.active && Math.random() > 0.6) {
+          t.active = true;
+          t.x = currentX;
+          t.y = currentY;
+          t.r = dynamicRadius * 0.7;
+          t.life = 1.0;
         }
 
-        if (mouse.x !== null) {
-          const dx = p.x - mouse.x, dy = p.y - mouse.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          if (dist < REPEL_RADIUS) {
-            const closeness = 1 - dist / REPEL_RADIUS;
-            const force = Math.pow(closeness, 1.6) * 90;
-            p.x += (dx / dist) * force * 0.09;
-            p.y += (dy / dist) * force * 0.09;
-            p.glow = Math.min(1, p.glow + closeness * 0.6);
+        if (t.active) {
+          t.life -= 0.025;
+          t.r *= 0.95;
+          t.el.setAttribute("cx", t.x);
+          t.el.setAttribute("cy", t.y);
+          t.el.setAttribute("r", Math.max(0, t.r));
+          t.el.setAttribute("opacity", t.life);
+
+          if (t.life <= 0) {
+            t.active = false;
+            t.el.setAttribute("r", "0");
           }
         }
-        p.glow *= 0.9;
+      });
 
-        const baseCol = hexLerp(p.color, p.targetColor, eased);
-        const col = p.glow > 0.02 ? hexLerp(baseCol, "#ffffff", p.glow * 0.7) : baseCol;
-
-        ctx.beginPath();
-        ctx.fillStyle = col;
-        ctx.globalAlpha = 0.55 + eased * 0.4 + p.glow * 0.3;
-        ctx.arc(p.x, p.y, p.size + eased * 0.6 + p.glow * 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      raf = requestAnimationFrame(frame);
+      requestRef.current = requestAnimationFrame(animate);
     }
-    raf = requestAnimationFrame(frame);
 
-    function onMove(e) {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = e.clientX - rect.left;
-      mouseRef.current.y = e.clientY - rect.top;
-    }
-    function onTouchMove(e) {
-      if (!e.touches || !e.touches[0]) return;
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = e.touches[0].clientX - rect.left;
-      mouseRef.current.y = e.touches[0].clientY - rect.top;
-    }
-    function onLeave() {
+    requestRef.current = requestAnimationFrame(animate);
+
+    // Mouse tracking
+    const onMouseMove = (e) => {
+      mouseRef.current.x = e.clientX;
+      mouseRef.current.y = e.clientY;
+    };
+    const onMouseLeave = () => {
       mouseRef.current.x = null;
       mouseRef.current.y = null;
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseleave", onLeave);
+    };
+    // Touch tracking for mobile
+    const onTouchMove = (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      mouseRef.current.x = e.touches[0].clientX;
+      mouseRef.current.y = e.touches[0].clientY;
+    };
+    const onTouchEnd = () => {
+      mouseRef.current.x = null;
+      mouseRef.current.y = null;
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseleave", onMouseLeave);
     window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onLeave);
-    window.addEventListener("touchcancel", onLeave);
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
 
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseleave", onLeave);
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseleave", onMouseLeave);
       window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onLeave);
-      window.removeEventListener("touchcancel", onLeave);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [mouseRef, isMobile]);
+  }, [mouseRef]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden="true" />;
-}
-
-function CursorGlow({ mouseRef, fine }) {
-  const glowRef = useRef(null);
-  const pos = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (!fine) return;
-    let raf;
-    function tick() {
-      const m = mouseRef.current;
-      if (m.x !== null && glowRef.current) {
-        pos.current.x += (m.x - pos.current.x) * 0.08;
-        pos.current.y += (m.y - pos.current.y) * 0.08;
-        glowRef.current.style.transform = `translate3d(${pos.current.x - 160}px, ${pos.current.y - 160}px, 0)`;
-        glowRef.current.style.opacity = "1";
-      } else if (glowRef.current) {
-        glowRef.current.style.opacity = "0";
-      }
-      raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [mouseRef, fine]);
-
-  if (!fine) return null;
   return (
-    <div
-      ref={glowRef}
-      className="pointer-events-none absolute top-0 left-0 w-80 h-80 rounded-full opacity-0 transition-opacity duration-300"
-      style={{ background: "radial-gradient(circle, rgba(52,211,153,0.16) 0%, rgba(56,189,248,0.08) 45%, transparent 70%)" }}
-    />
+    <>
+      <style>{`
+        .reveal-container { clip-path: url(#blob-mask); }
+      `}</style>
+      
+      {/* Dark navy background — matches the app's deep blue colour scheme */}
+      <div className="absolute inset-0 z-0" style={{ backgroundColor: '#060e1d' }} />
+
+      {/* Base Layer: grayscale man — luminosity blend makes grey photo bg adopt the dark navy hue */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/a985c5f1-0f13-4cee-b02e-104026005870/1783665424315-b1894727/Gemini_Generated_Image_m5sxj0m5sxj0m5sx.png"
+          className="w-full h-full object-cover"
+          style={{ filter: 'grayscale(100%) brightness(0.55)', mixBlendMode: 'luminosity', opacity: 0.85 }}
+          alt="Base Image"
+        />
+      </div>
+
+      {/* Reveal Layer: full-color man, clipped to blob cursor shape */}
+      <div className="reveal-container absolute inset-0 z-0 pointer-events-none" style={{ backgroundColor: '#060e1d' }}>
+        <img
+          src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/a985c5f1-0f13-4cee-b02e-104026005870/1783665428843-5ae19fa9/Gemini_Generated_Image_s79aous79aous79a.png"
+          className="w-full h-full object-cover"
+          style={{ opacity: 0.95 }}
+          alt="Reveal Image"
+        />
+      </div>
+
+      {/* SVG Filters & Mask */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <filter id="goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 35 -15" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+          <clipPath id="blob-mask" clipPathUnits="userSpaceOnUse">
+            <circle ref={mainBlobRef} cx="0" cy="0" r="160" />
+            <g ref={trailContainerRef}></g>
+          </clipPath>
+        </defs>
+      </svg>
+
+      {/* Visual Blob Cursor */}
+      <div
+        ref={cursorVisualRef}
+        className="fixed top-0 left-0 w-[320px] h-[320px] -ml-[160px] -mt-[160px] rounded-full border border-white/30 pointer-events-none z-10 mix-blend-difference hidden md:block"
+      ></div>
+    </>
   );
 }
 
@@ -492,8 +486,8 @@ export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
 
   return (
     <div
-      className="relative min-h-screen w-full bg-transparent text-white overflow-hidden cursor-default"
-      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="relative min-h-screen w-full text-white overflow-hidden"
+      style={{ backgroundColor: '#060e1d', paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <style>{`
         @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
@@ -507,13 +501,8 @@ export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
         }
       `}</style>
 
-      {/* DataConstellation3D is now rendered at the App level */}
-
-      <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-emerald-500/10 rounded-full blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-
-      <ParticleField mouseRef={mouseRef} isMobile={isMobile} />
-      <CursorGlow mouseRef={mouseRef} fine={fine} />
+      {/* Blob reveal background — man with respirator mask */}
+      <BlobMaskBackground mouseRef={mouseRef} />
 
       <div
         ref={badgeRef}
@@ -541,27 +530,29 @@ export default function LandingPage({ onEnter, mouseRef, fine, isMobile }) {
           </div>
         </header>
 
-        <main ref={heroRef} className="flex-1 flex flex-col items-center justify-center text-center px-5 sm:px-6 -mt-6 sm:-mt-8 will-change-transform">
-          <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-emerald-400/80 font-semibold mb-3 sm:mb-4">
-            Hyperlocal pollution, made visible
-          </p>
-          <h1 className="text-3xl sm:text-6xl font-bold tracking-tight max-w-3xl leading-[1.08] sm:leading-[1.05]">
-            Every scattered signal,
-            <br />
-            <span className="shimmer-text text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-blue-400 to-emerald-400">
-              one clear picture.
-            </span>
-          </h1>
-          <p className="mt-5 sm:mt-6 max-w-xl text-gray-400 text-sm leading-relaxed">
-            A garbage fire, a smog trap at a junction, a dust cloud from a site —
-            AirWatch turns citizen photos and live sensor data into hotspots
-            authorities can act on, before the air gets worse.
-          </p>
+        <main ref={heroRef} className="flex-1 flex flex-col items-center justify-center text-center px-5 sm:px-6 -mt-6 sm:-mt-8 will-change-transform max-w-4xl mx-auto z-20" style={{ pointerEvents: 'none' }}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-emerald-400/90 font-semibold mb-3 sm:mb-4 drop-shadow-md">
+              Hyperlocal pollution, made visible
+            </p>
+            <h1 className="text-3xl sm:text-6xl font-bold tracking-tight max-w-3xl leading-[1.08] sm:leading-[1.05] drop-shadow-xl shadow-black">
+              Every scattered signal,
+              <br />
+              <span className="shimmer-text text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-blue-400 to-emerald-400">
+                one clear picture.
+              </span>
+            </h1>
+            <p className="mt-5 sm:mt-6 max-w-xl mx-auto text-gray-200 text-sm sm:text-base leading-relaxed drop-shadow-md shadow-black font-medium">
+              A garbage fire, a smog trap at a junction, a dust cloud from a site —
+              AirWatch turns citizen photos and live sensor data into hotspots
+              authorities can act on, before the air gets worse.
+            </p>
 
-          <MagneticButton onEnter={onEnter} fine={fine} />
-          <p className="mt-3 text-[11px] text-gray-600">
-            {isMobile ? "Drag your finger over the haze above — watch it clear." : "Move your cursor over the haze above — watch it clear."}
-          </p>
+            <MagneticButton onEnter={onEnter} fine={fine} />
+            <p className="mt-4 text-[11px] text-gray-400 drop-shadow-md">
+              {isMobile ? "Touch and drag to reveal the man behind the pollution." : "Move your cursor to reveal the man behind the pollution."}
+            </p>
+          </div>
         </main>
 
         <footer className="px-5 sm:px-10 pb-8 sm:pb-10">

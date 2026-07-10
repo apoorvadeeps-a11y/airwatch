@@ -2093,10 +2093,12 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full bg-gray-950 overflow-x-hidden">
-      {/* Global 3D Wave background that persists across all tabs */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <DataConstellation3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
-      </div>
+      {/* 3D Wave background only visible inside the main app, not on the landing page */}
+      {entered && (
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <DataConstellation3D mouseRef={mouseRef} fine={fine} isMobile={isMobile} />
+        </div>
+      )}
 
       <div className="relative z-10">
         {entered ? (
