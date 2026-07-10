@@ -42,6 +42,7 @@ export function useIsMobile() {
 
 // ---------- foreground: swirling haze -> clean ring, reacts to cursor drag or finger drag ----------
 function BlobMaskBackground({ mouseRef }) {
+  const containerRef = useRef(null);
   const mainBlobRef = useRef(null);
   const trailContainerRef = useRef(null);
   const cursorVisualRef = useRef(null);
@@ -76,8 +77,22 @@ function BlobMaskBackground({ mouseRef }) {
     function animate() {
       time += 0.015;
 
-      let mouseX = mouseRef.current.x ?? window.innerWidth / 2;
-      let mouseY = mouseRef.current.y ?? window.innerHeight / 2;
+      const rect = containerRef.current?.getBoundingClientRect();
+      let rawX = mouseRef.current.x;
+      let rawY = mouseRef.current.y;
+      
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+      
+      if (rect) {
+        if (rawX !== null && rawY !== null) {
+          mouseX = rawX - rect.left;
+          mouseY = rawY - rect.top;
+        } else {
+          mouseX = rect.width / 2;
+          mouseY = rect.height / 2;
+        }
+      }
 
       currentX += (mouseX - currentX) * 0.12;
       currentY += (mouseY - currentY) * 0.12;
@@ -88,7 +103,8 @@ function BlobMaskBackground({ mouseRef }) {
       lastX = mouseX;
       lastY = mouseY;
 
-      const baseRadius = 160;
+      const isMobileSize = window.innerWidth < 768;
+      const baseRadius = isMobileSize ? 90 : 160;
       const wobble = Math.sin(time * 3) * 8;
       const dynamicRadius = baseRadius + speed * 0.4 + wobble;
 
@@ -168,7 +184,10 @@ function BlobMaskBackground({ mouseRef }) {
   }, [mouseRef]);
 
   return (
-    <>
+    <div 
+      ref={containerRef}
+      className="absolute w-[85vw] h-[50vh] max-w-[380px] max-h-[480px] md:w-full md:h-full md:max-w-none md:max-h-none rounded-2xl md:rounded-none overflow-hidden border border-gray-800/80 md:border-none shadow-2xl md:shadow-none top-[43%] md:top-0 left-1/2 md:left-0 -translate-x-1/2 md:translate-x-0 -translate-y-1/2 md:translate-y-0 z-0"
+    >
       <style>{`
         .reveal-container { clip-path: url(#blob-mask); }
       `}</style>
@@ -214,9 +233,9 @@ function BlobMaskBackground({ mouseRef }) {
       {/* Visual Blob Cursor */}
       <div
         ref={cursorVisualRef}
-        className="fixed top-0 left-0 w-[320px] h-[320px] -ml-[160px] -mt-[160px] rounded-full border border-white/30 pointer-events-none z-10 mix-blend-difference hidden md:block"
+        className="absolute top-0 left-0 w-[320px] h-[320px] -ml-[160px] -mt-[160px] rounded-full border border-white/30 pointer-events-none z-10 mix-blend-difference hidden md:block"
       ></div>
-    </>
+    </div>
   );
 }
 
